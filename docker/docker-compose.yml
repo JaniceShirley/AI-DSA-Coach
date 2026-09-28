@@ -8,7 +8,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://dsa_user:dsa_password@db:5432/dsa_coach
+      - DB_NAME=dsa_coach
+      - DB_USER=dsa_user
+      - DB_PASSWORD=dsa_password
+      - DB_HOST=db
+      - DB_PORT=5432
       - SECRET_KEY=development-secret-key-change-in-prod
       - FRONTEND_URL=http://localhost:5173
     depends_on:
