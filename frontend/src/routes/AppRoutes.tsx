@@ -10,6 +10,9 @@ import { ProblemExplorerPage } from '../pages/ProblemExplorerPage';
 import { ProblemDetailPage } from '../pages/ProblemDetailPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
+import { InterviewSetupPage } from '../pages/InterviewSetupPage';
+import { InterviewSessionPage } from '../pages/InterviewSessionPage';
+import { InterviewHistoryPage } from '../pages/InterviewHistoryPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,6 +44,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/problems" element={<ProblemExplorerPage />} />
         <Route path="/problems/:slug" element={<ProblemDetailPage />} />
+        <Route path="/interview" element={<InterviewSetupPage />} />
+        <Route path="/interview/:sessionId" element={<InterviewSessionPage />} />
+        <Route path="/interview/history" element={<InterviewHistoryPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

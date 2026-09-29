@@ -61,7 +61,16 @@ class DashboardProgressView(APIView):
         unsolved_problems = [p for p in all_problems if p.id not in progress_map or progress_map[p.id].status != 'SOLVED']
         recommended_problem = None
         if unsolved_problems:
-            rec = next((p for p in unsolved_problems if p.difficulty == 'Easy'), unsolved_problems[0])
+            from apps.interviews.models import InterviewEvaluation
+            latest_eval = InterviewEvaluation.objects.filter(interview_session__user=user).order_by('-created_at').first()
+            rec = None
+            if latest_eval and latest_eval.recommended_topics:
+                rec = next(
+                    (p for p in unsolved_problems if any(t in (p.topics or []) for t in latest_eval.recommended_topics)),
+                    None
+                )
+            if not rec:
+                rec = next((p for p in unsolved_problems if p.difficulty == 'Easy'), unsolved_problems[0])
             recommended_problem = ProblemListSerializer(rec, context={'request': request}).data
 
         data = {

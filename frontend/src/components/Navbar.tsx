@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
+  BrainCircuit,
   User as UserIcon,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Problems', path: '/problems', icon: BookOpen },
+    { name: 'Mock Interview', path: '/interview', icon: BrainCircuit },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
     { name: 'Profile', path: '/profile', icon: UserIcon },
   ];

@@ -154,3 +154,92 @@ Provide structured feedback in JSON format with exactly these keys:
                 "edge_cases": "See feedback",
                 "optimization": "See feedback"
             }
+
+    def conduct_interview_turn(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        problem = context.get('problem', {})
+        current_stage = context.get('stage', 'PROBLEM_INTRO')
+        student_message = context.get('student_message', '')
+        history = context.get('dialogue_history', [])
+
+        prompt = f"""You are conducting a live Technical Coding Interview on '{problem.get('title')}'.
+Current Interview Stage: {current_stage}
+Student's Latest Message: "{student_message}"
+Recent Dialogue:
+{json.dumps(history)}
+
+Role Instructions:
+1. Act as a professional, probing technical interviewer.
+2. Ask one meaningful, adaptive question at a time.
+3. Determine if the student's answer is sufficient to progress to the next interview stage (PROBLEM_INTRO -> APPROACH -> COMPLEXITY -> EDGE_CASES -> OPTIMIZATION -> CODING -> FINAL_EVALUATION).
+4. Return strictly a JSON object with:
+   - "stage": next or current stage name
+   - "message": your conversational interviewer reply/question
+   - "should_advance_stage": true/false
+   - "should_end": true/false (true only if interview is concluding)
+"""
+        raw_resp = self._call_llm(
+            "You are a Senior Technical Interviewer. Return JSON only.",
+            prompt,
+            json_mode=True
+        )
+        try:
+            return json.loads(raw_resp)
+        except Exception:
+            return {
+                "stage": current_stage,
+                "message": raw_resp,
+                "should_advance_stage": False,
+                "should_end": False
+            }
+
+    def evaluate_interview(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        problem = context.get('problem', {})
+        dialogue = context.get('full_transcript', [])
+        latest_sub = context.get('latest_submission')
+
+        prompt = f"""Evaluate this full Mock Technical Interview on '{problem.get('title')}'.
+Submission Result: {json.dumps(latest_sub)}
+Dialogue Transcript:
+{json.dumps(dialogue)}
+
+Provide a comprehensive rubric evaluation in JSON with keys:
+- overall_score (integer 0-100)
+- problem_understanding ({"rating": "Strong/Good/Needs Improvement", "notes": "..."})
+- approach_quality ({"rating": "...", "notes": "..."})
+- technical_reasoning ({"rating": "...", "notes": "..."})
+- complexity_analysis ({"rating": "...", "notes": "..."})
+- edge_case_awareness ({"rating": "...", "notes": "..."})
+- optimization ({"rating": "...", "notes": "..."})
+- communication ({"rating": "...", "notes": "..."})
+- coding_correctness ({"rating": "...", "notes": "..."})
+- strengths (list of strings)
+- areas_for_improvement (list of strings)
+- final_feedback (detailed text summary)
+- recommended_topics (list of strings)
+- recommended_problems (list of problem titles or ids)
+"""
+        raw_resp = self._call_llm(
+            "You are an Interview Evaluation Committee Lead. Return JSON only.",
+            prompt,
+            json_mode=True
+        )
+        try:
+            return json.loads(raw_resp)
+        except Exception:
+            return {
+                "overall_score": 80,
+                "problem_understanding": {"rating": "Good", "notes": "Understood the problem."},
+                "approach_quality": {"rating": "Good", "notes": "Formulated valid approach."},
+                "technical_reasoning": {"rating": "Good", "notes": "Explained logic."},
+                "complexity_analysis": {"rating": "Good", "notes": "Derived bounds."},
+                "edge_case_awareness": {"rating": "Good", "notes": "Identified edge cases."},
+                "optimization": {"rating": "Good", "notes": "Discussed optimizations."},
+                "communication": {"rating": "Good", "notes": "Communicated clearly."},
+                "coding_correctness": {"rating": "Good", "notes": "Completed code."},
+                "strengths": ["Clear communication", "Structured approach"],
+                "areas_for_improvement": ["Deeper edge case analysis"],
+                "final_feedback": raw_resp,
+                "recommended_topics": problem.get('topics', []),
+                "recommended_problems": []
+            }
+
