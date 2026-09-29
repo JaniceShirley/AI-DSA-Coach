@@ -6,13 +6,13 @@ import { submissionService } from '../services/submissionService';
 import type { ProblemDetail, UserProblemProgress, ProblemStatus, Submission, RunCodeResponse } from '../types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { CodeEditor } from '../components/CodeEditor';
+import { AICoachPanel } from '../components/AICoachPanel';
 import { getDifficultyBadgeClass, getStatusBadgeClass } from '../utils/difficultyColors';
 import { formatDate } from '../utils/formatting';
 import {
   ArrowLeft,
   CheckCircle2,
   Code2,
-  Sparkles,
   AlertCircle,
   Play,
   Send,
@@ -267,21 +267,12 @@ export const ProblemDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* AI DSA Coach Placeholder */}
-              <div className="bg-slate-900/90 border border-indigo-500/20 p-5 rounded-xl space-y-3">
-                <div className="flex items-center space-x-2 text-indigo-400">
-                  <Sparkles className="w-5 h-5" />
-                  <h3 className="text-sm font-bold text-white">AI DSA Coach</h3>
-                </div>
-                <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-lg text-center space-y-1">
-                  <p className="text-xs text-slate-400 italic">
-                    “AI coaching will appear here when the coaching system is enabled.”
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    Progressive hint generation & LoRA fine-tuned model assistance arriving in Phase 4.
-                  </p>
-                </div>
-              </div>
+              {/* Integrated AI DSA Coach Panel */}
+              <AICoachPanel
+                problemId={problem.id}
+                studentCode={code}
+                latestSubmissionId={submissions.length > 0 ? submissions[0].id : undefined}
+              />
 
               {/* Progress Stats Summary */}
               {progress && (

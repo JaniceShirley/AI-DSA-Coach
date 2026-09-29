@@ -8,5 +8,6 @@ urlpatterns = [
     path('api/problems/', include('apps.problems.urls')),
     path('api/progress/', include('apps.progress.urls')),
     path('api/submissions/', include('apps.submissions.urls')),
+    path('api/coaching/', include('apps.coaching.urls')),
     path('api/analytics/', AnalyticsView.as_view(), name='analytics-dashboard'),
 ]
