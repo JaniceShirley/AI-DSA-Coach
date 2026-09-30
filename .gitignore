@@ -51,3 +51,12 @@ build/
 .env.local
 .env.development
 .env.production
+
+# ML Models, Checkpoints & Large Artifacts
+ml/venv/
+ml/models/base/
+ml/models/checkpoints/
+ml/runs/checkpoint-*/
+*.safetensors
+*.bin
+*.pt

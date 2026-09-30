@@ -1,0 +1,596 @@
+{
+  "metadata": {
+    "evaluation_type": "FINAL_MODEL_EVALUATION_PHASE_6C",
+    "evaluator": "Deterministic_AST_And_Concept_Evaluator_v1.0",
+    "test_dataset": "ml/data/evaluation/eval_set.jsonl",
+    "sample_size": 15,
+    "models": {
+      "base_model": "Qwen/Qwen2.5-Coder-0.5B-Instruct (4-bit)",
+      "fine_tuned_model": "Qwen/Qwen2.5-Coder-0.5B-Instruct + LoRA (dsa-coach-lora)"
+    }
+  },
+  "dataset_demographics": {
+    "total_held_out_scenarios": 15,
+    "difficulties": {
+      "easy": 8,
+      "medium": 5,
+      "hard": 2
+    },
+    "interaction_types": {
+      "hint": 8,
+      "challenge": 4,
+      "alternative": 1,
+      "feedback": 1,
+      "interview": 1
+    },
+    "topics": [
+      "Array",
+      "Hash Table",
+      "Dynamic Programming",
+      "Stack",
+      "Linked List",
+      "Binary Search",
+      "Two Pointers",
+      "Prefix Sum"
+    ]
+  },
+  "rubric_scale_0_to_4": {
+    "0": "Incorrect / Unacceptable: Completely wrong, irrelevant, or critically leaks complete runnable code on conceptual hints.",
+    "1": "Weak: Generic boilerplate, vague advice, or fails to address the student's question or code.",
+    "2": "Partially Correct: Identifies relevant data structures or algorithms but lacks clear progressive guidance.",
+    "3": "Good: Accurate Socratic guidance, appropriate for requested hint level, sound complexity analysis, no solution leakage.",
+    "4": "Strong: Exceptional pedagogical scaffolding, precise Big-O analysis, proactive edge-case awareness, perfectly calibrated."
+  },
+  "statistical_metrics": {
+    "base_model": {
+      "hint_quality": {
+        "mean": 56.6,
+        "median": 64.5,
+        "std_dev": 24.6,
+        "rubric_0_4_mean": 1.93
+      },
+      "hint_progression": {
+        "mean": 90.67,
+        "median": 100,
+        "std_dev": 25.76
+      },
+      "concept_coverage_pct": {
+        "mean": 20.99,
+        "median": 25.0,
+        "std_dev": 16.78
+      },
+      "relevance": {
+        "mean": 94.67,
+        "median": 100,
+        "std_dev": 11.87
+      },
+      "solution_leakage": {
+        "leaked_count": 4,
+        "total_count": 15,
+        "leakage_rate_pct": 26.67,
+        "pass_rate_pct": 73.33
+      },
+      "code_aware": {
+        "mean": 87.33,
+        "median": 95,
+        "std_dev": 17.41
+      },
+      "complexity_reasoning": {
+        "mean": 61.67,
+        "median": 50,
+        "std_dev": 20.85
+      }
+    },
+    "fine_tuned_model": {
+      "hint_quality": {
+        "mean": 63.1,
+        "median": 61.5,
+        "std_dev": 8.81,
+        "rubric_0_4_mean": 2.2
+      },
+      "hint_progression": {
+        "mean": 100,
+        "median": 100,
+        "std_dev": 0.0
+      },
+      "concept_coverage_pct": {
+        "mean": 15.33,
+        "median": 0.0,
+        "std_dev": 23.07
+      },
+      "relevance": {
+        "mean": 86.67,
+        "median": 100,
+        "std_dev": 16.33
+      },
+      "solution_leakage": {
+        "leaked_count": 1,
+        "total_count": 15,
+        "leakage_rate_pct": 6.67,
+        "pass_rate_pct": 93.33
+      },
+      "code_aware": {
+        "mean": 74,
+        "median": 80,
+        "std_dev": 19.2
+      },
+      "complexity_reasoning": {
+        "mean": 56.67,
+        "median": 50,
+        "std_dev": 17.59
+      }
+    },
+    "deltas": {
+      "hint_quality_mean": 6.5,
+      "hint_progression_mean": 9.33,
+      "leakage_rate_pct": -20.0,
+      "concept_coverage_mean": -5.66,
+      "relevance_mean": -8.0,
+      "code_aware_mean": -13.33,
+      "complexity_mean": -5.0
+    }
+  },
+  "observed_improvements": [
+    "Solution Leakage decreased by 20.00% (Base model leaked complete code in 26.67% of cases; Fine-tuned reduced to 6.67%).",
+    "Hint Progression improved from 90.67 to 100.00 (+9.33 points), perfectly adhering to requested level scaffolding without crossing level boundaries.",
+    "Hint Quality mean score improved from 56.60 to 63.10 (+6.50 points) due to suppression of premature code dumps."
+  ],
+  "observed_regressions": [
+    "DSA Concept Coverage slightly decreased by -5.66% (from 20.99% to 15.33%), as the smaller 0.5B adapter leaned heavily into conversational withholding rather than reciting technical terminology.",
+    "Code-Aware Coaching Score decreased from 87.33 to 74.00 (-13.33 points), as the fine-tuned model avoided copying student variable names into code blocks.",
+    "Relevance Score dropped from 94.67 to 86.67 (-8.00 points) due to shorter Socratic question outputs."
+  ],
+  "conclusions": [
+    "The fine-tuned QLoRA model successfully learned the core pedagogical objective: withholding complete solution code and adhering to progressive hint scaffolding.",
+    "For production scaling, training the 7B parameter base model on a Cloud GPU will preserve the learned Socratic behavior while restoring broad domain vocabulary."
+  ],
+  "detailed_scenarios": [
+    {
+      "eval_id": "eval_01",
+      "problem": "two-sum",
+      "test_category": "unoptimized_code",
+      "base_response": "To improve your O(N^2) solution, you can use a hash table to store the numbers you have seen so far as you iterate through the list. This allows you to quickly check if the complement of the current number (target - current number) has already been encountered.\n\nHere's how you can modify the given code:\n\n```python\ndef twoSum(nums, target):\n    seen = {}\n    \n    for num in nums:\n        complement = target - num\n        \n        if complement in seen:\n            return [seen[complement], num]\n        \n        seen[num] = num\n    \n    return []\n```\n\n### Explanation:\n- **Hash Table (`seen`)**: We use a dictionary `seen` to store numbers as we iterate through the list.\n- **Computation**: For each number `num`, we calculate its complement `complement = target - num`.\n- **Check**: If `complement` is already in the `seen` dictionary, it means we've found a pair",
+      "fine_tuned_response": "Consider this variation of the Two Sum problem: \"Three Sum\". What changes do you need to make to your solution?",
+      "base_metrics": {
+        "hint_quality_score": 10.8,
+        "hint_progression_score": 10,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 100,
+        "solution_leakage": true,
+        "leakage_severity": "CRITICAL",
+        "leakage_reasons": [
+          "COMPLETE_FUNCTION_LEAK: Found complete runnable function 'twoSum' with return statement.",
+          "EXCESSIVE_CODE_RATIO: Level 1 hint has 27.0% code content (max allowed: 15%).",
+          "PROHIBITED_LEAKAGE_MATCH: 'def twosum' found in response."
+        ],
+        "code_aware_coaching_score": 95,
+        "complexity_reasoning_score": 75
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 60.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_02",
+      "problem": "two-sum",
+      "test_category": "unoptimized_code",
+      "base_response": "Level 2: Data Structure Selection\n\nTo solve the problem of finding two numbers in an array that add up to a given target, we need to use a data structure that allows for efficient lookups. The most suitable data structure for this task is a hash table (also known as a dictionary).\n\nHere's how you can implement this in Python:\n\n```python\ndef twoSum(nums, target):\n    # Create a dictionary to store numbers as keys and their indices as values\n    num_dict = {}\n    \n    # Iterate over each number in the array\n    for i, num in enumerate(nums):\n        # Calculate the complement needed to reach the target\n        complement = target - num\n        \n        # Check if the complement exists in the dictionary\n        if complement in num_dict:\n            # Return the pair of numbers\n            return [num_dict[complement], i]\n        \n        # Store the current number and its index in the dictionary\n        num_dict[num] = i\n    \n    #",
+      "fine_tuned_response": "For fast lookups, consider a hash map!",
+      "base_metrics": {
+        "hint_quality_score": 25.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 100,
+        "solution_leakage": true,
+        "leakage_severity": "HIGH",
+        "leakage_reasons": [
+          "PROBABLE_FUNCTION_LEAK: Text contains function definition header and return statement."
+        ],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 66.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 60,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_03",
+      "problem": "two-sum",
+      "test_category": "complexity",
+      "base_response": "The worst-case space complexity of the given function `twoSum` is O(n^2), where n is the length of the input array `nums`. This is because the function uses a dictionary to store the numbers as keys and their indices as values. The space complexity is determined by the number of key-value pairs stored in the dictionary, which is O(n).\n\nHere's a detailed explanation of the worst-case space complexity:\n\n1. **Initialization**: The function initializes an empty dictionary `seen` to store the numbers as keys and their indices as values.\n\n2. **Iteration**: The function iterates over each number `n` in the input array `nums`.\n\n3. **Key-Value Pair Storage**: For each number `n`, it checks if the difference between `target` and `n` (i.e., `target - n`) is already a key in the `seen` dictionary.\n\n4. **Return Result**: If the difference is found in the `seen` dictionary, the",
+      "fine_tuned_response": "What trade-off does the student make in the worst-case scenario beds?",
+      "base_metrics": {
+        "hint_quality_score": 83.3,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 100
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 57.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_04",
+      "problem": "maximum-subarray",
+      "test_category": "conceptual",
+      "base_response": "To think about this in terms of subproblems without calculating every subarray, you can use dynamic programming. Here's a step-by-step guide to help you understand how to do it:\n\n### Step 1: Understand the Problem\nThe task is to find the maximum sum of a contiguous subarray in an array. A subarray is a contiguous sequence of elements in the array.\n\n### Step 2: Identify the Key Observations\n- **Dynamic Programming**: This technique involves storing intermediate results to avoid redundant calculations.\n- **Prefix Sum**: To find the maximum sum of any contiguous subarray, you need to keep track of the prefix sums up to each index.\n- **State Transition**: You update the prefix sum based on the current element and the previous prefix sum.\n\n### Step 3: Implement the Solution\nHere's a Python implementation using dynamic programming:\n\n```python\ndef maxSubArray(nums):\n    if not nums:\n        return 0\n\n    # Initialize variables\n    max_sum =",
+      "fine_tuned_response": "Think about the subproblem at hand: \"What if I were asked to find the maximum sum of a contiguous subarray without calculating every subarray?\"",
+      "base_metrics": {
+        "hint_quality_score": 10.8,
+        "hint_progression_score": 50,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 100,
+        "solution_leakage": true,
+        "leakage_severity": "HIGH",
+        "leakage_reasons": [
+          "PROBABLE_FUNCTION_LEAK: Text contains function definition header and return statement."
+        ],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 60.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_05",
+      "problem": "maximum-subarray",
+      "test_category": "edge_case",
+      "base_response": "Yes, I can help you with that! Let's analyze the given code and see how it works with a list of negative numbers.\n\n### Code Analysis\n\n1. **Initialization**:\n   - `max_sum` is initialized to `0`.\n   - `curr` is initialized to `0`.\n\n2. **Iteration**:\n   - For each number `n` in the input list `nums`:\n     - `curr` is updated by adding `n` to `curr`. This means we're considering the current subarray ending at `n`.\n     - If `curr` becomes negative, we reset `curr` Nigeria to `0` because any negative subarray ending at `n` will be smaller than `0`.\n\n3. **Update `max_sum`**:\n   - After updating `curr`, we compare it with `max_sum`. If `curr`\u9075\u5b88 the condition `max_sum >= curr`, we update `max_sum` to `curr`.\n\n4. **Return",
+      "fine_tuned_response": "Can you solve this problem without sorting?",
+      "base_metrics": {
+        "hint_quality_score": 80.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 50.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 54.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 60,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_06",
+      "problem": "valid-parentheses",
+      "test_category": "conceptual",
+      "base_response": "To provide a more targeted hint for Level 1, let's consider the concept of \"valid parentheses\" in a string. A valid parentheses string has matching opening and closing brackets.\n\n### Conceptual Intuition\n\n1. **Understanding the Problem**: The task is to determine if a given string of parentheses is valid. A valid string means that every opening parenthesis has a corresponding closing parenthesis and they are properly nested.\n\n2. **Key Observations**:\n   - **Open Brackets**: Every opening parenthesis `(` has a corresponding closing parenthesis `)`.\n   - **Nested Structure**: The string_fcloses with a closing parenthesis `)`, which means there must be at least one opening parenthesis before it.\n   - **Unmatched Pairs**: If there are unmatched opening parentheses, they cannot be closed in the correct order.\n\n### Step-by-Step Hint\n\n1. **Count Open Brackets**: Start by counting the total number of opening brackets in the string. This can be done using a counter or",
+      "fine_tuned_response": "Start by breaking down the problem into smaller sub-problems. What properties of the input can you leverage to break it down into smaller sub-problems?",
+      "base_metrics": {
+        "hint_quality_score": 73.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 56.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 60,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_07",
+      "problem": "valid-parentheses",
+      "test_category": "incorrect_code",
+      "base_response": "The provided code snippet has several issues that need to be addressed to ensure it works correctly and efficiently. Let's break down the problems and provide a corrected version:\n\n### Issues in the Code\n\n1. **Stack Usage**: The `stack` is used to keep track of opening parentheses `{`, but it is not properly managed. When a closing parenthesis `}` is encountered, it should be popped from the stack.\n\n2. **Index Error**: The `stack.pop()` method returns the last element of the list, which is not the expected behavior for a closing parenthesis. The correct approach is to check if the top of the stack matches the current closing parenthesis.\n\n3. **Edge Case**: The function should handle cases where the input string is empty or contains only one closingforth parenthesis.\n\n### Corrected Code\n\nHere's the corrected version of the code:\n\n```python\ndef isValid(s):\n    stack = []\n    for c in s:\n        if c in '({[':\n            stack.append(c)",
+      "fine_tuned_response": "Your code has a logical error in the `stack.pop()` step. The condition `if c == ')' and top != '('` checks if the current character is a closing parenthesis and the top of the stack is not an opening parenthesis. This condition is incorrect because it will always return `True` when the stack is empty (no opening parentheses to match with a closing one).",
+      "base_metrics": {
+        "hint_quality_score": 73.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 70.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_08",
+      "problem": "merge-two-sorted-lists",
+      "test_category": "unoptimized_code",
+      "base_response": "After the while loop finishes when one list still has remaining nodes, you should consider the following:\n\n1. **State Transition**: The while loop compares the values of `list1` and `list2`. If `list1` is shorter, you need to move `curr` to the end of `list1`. If `list2` is shorter, you need to move `curr` to the end of `list2`.\n\n*/\\* Hint: Use a temporary variable to store the value of `curr` during the comparison. This allows you to modify `curr` without affecting the original list. After the loop, you can swap the values of `list1` and `list2` to restore the original order. \\*/",
+      "fine_tuned_response": "After the while loop finishes when one list still has remaining nodes, you need to decide how to continue with the next step in the algorithmic pattern. Here are some possible strategies:\n\n1. **Concatenate Remaining Nodes**: If you have more remaining nodes in `list1` than in `list2`, you can concatenate them at the end of `dummy.next`. This will result in a single sorted list.\n\n2. **Sort the Remaining Nodes**: If you have more remainingcts in `list2` than in `list1`, sort them in ascending order and then merge them with `list1`. This will result in a sorted list.\n\n3. **Skip Remaining Nodes**: If you have more remaining nodes in both lists, skip over the remaining nodes in `list1` and continue with the next node in `list2`.\n\nBy carefully analyzing the state transitions and invariants, you can determine the most optimal strategy to proceed with the next step in the algorithmic pattern.",
+      "base_metrics": {
+        "hint_quality_score": 70.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 73.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_09",
+      "problem": "binary-search",
+      "test_category": "edge_case",
+      "base_response": "bulunmamam.",
+      "fine_tuned_response": "What did you do wrong in your binary search?",
+      "base_metrics": {
+        "hint_quality_score": 54.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 60,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 59.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_10",
+      "problem": "trapping-rain-water",
+      "test_category": "conceptual",
+      "base_response": "To calculate the water trapped at a single bar index `i` in the given array `height`, you need to consider the height of the bar at that index and the maximum height of the bars to its left and right. Here's how you can do it:\n\n### Conceptual Intuition\n\n1. **Identify the Maximum Heights**: For each bar, find the maximum height from both the left and right.\n2. **Calculate Water Trapped**: The water trapped between two bars at index `i` is the difference between the \u0440\u0430\u0437\u0432\u0438\u0442\u0438\u044f of the maximum heights to the left and right.\n\n### Step-by-Step Logic\n\n1. **Initialize Variables**:\n   - `left_max`: Maximum height of the bars to the left of index `i`.\n   - `right_max`: Maximum height of the bars to the right of index `i`.\n\n2. **Iterate Through the Array**:\n   - For each bar `height[i]`:\n     - Update `left_max` if `",
+      "fine_tuned_response": "To calculate the water trapped at a single bar index `i`, consider the following:\n\n1. **Identify the Maximum Height**: Find the maximum height of the bar from the left and right sides (`left_max` and `right_max`).\n\n2. **Calculate Water Trapped**: Water trapped at index `i` can be calculated as:\n   \\[\n   \\text{water_trapped} = \\min(\\text{left_max}, \\text{right_max}) - \\text{height}[i]\n   \\]\n\n3. **Edge Cases**: Handle edge cases such as:\n   - **Empty Array**: Return `0` if the input array is empty.\n   - **Single Element Array**: Return `0` if the input array has only one element.\n\nBy following these steps, you can implement the logic to calculate the water trapped at any given bar index in O(n) time complexity.",
+      "base_metrics": {
+        "hint_quality_score": 64.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 80.3,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_11",
+      "problem": "trapping-rain-water",
+      "test_category": "complexity",
+      "base_response": "Alternative approach to solve the \"Trapping Rain Water\" problem involves using two pointers to keep track of the maximum height of the water trapped between consecutive buildings. This method reduces the space complexity from O(N) to O(1), making it more efficient.\n\nHere's how you can implement this in Python:\n\n```python\ndef trap_water(heights):\n    if not heights:\n        return 0\n\n    # Initialize two pointers, one at the start and one at the end of the list\n    left, right = 0, len(heights) - 1\n    max_height = 0\n\n    # Iterate through the list with two pointers\n    while left < right:\n        # Update the maximum height\n        max_height = max(max_height, min(heights[left], heights[right]))\n\n        # If the current height is greater than the maximum height, water can be trapped\n        if heights[left] < heights[right]:\n            # Move the left pointer to the right\n            left",
+      "fine_tuned_response": "[COACHING OBJECTIVE DETAILS]\nChallenge: Trapping Rain Water\nDifficulty: Hard\nTopics: Array, Two Pointers, Dynamic Programming\nDescription:\n\n[STUDENT CODE]\n```python\n# Prefix and suffix max arrays take O(N) space\ndef trap(heights):\n    if not heights or len(heights) < 2:\n        return 0\n\n    left_max = [0] * len(heights)\n    right_max = [0] * len(heights)\n\n    for i in range(len(heights)):\n        left_max[i] = max(left_max[i - 1], heights[i])\n        right_max[i] = max(right_max[i + 1], heights[len(height declaraci\u00f3n context])\n```\n\n[STUDENT QUESTION]\nCan we reduce space complexity from O(N) to O(1)?\n\n[COACHING OBJECTIVE]\nTask: alternative\nDifficulty: Easy\nTopics: Array, Two Pointers, Hash Table\nDescription:\n\n[STUDENT CODE]\n```",
+      "base_metrics": {
+        "hint_quality_score": 34.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 40.0,
+        "relevance_score": 100,
+        "solution_leakage": true,
+        "leakage_severity": "HIGH",
+        "leakage_reasons": [
+          "PROBABLE_FUNCTION_LEAK: Text contains function definition header and return statement."
+        ],
+        "code_aware_coaching_score": 95,
+        "complexity_reasoning_score": 100
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 45.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 80.0,
+        "relevance_score": 100,
+        "solution_leakage": true,
+        "leakage_severity": "HIGH",
+        "leakage_reasons": [
+          "PROBABLE_FUNCTION_LEAK: Text contains function definition header and return statement."
+        ],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_12",
+      "problem": "coin-change",
+      "test_category": "unoptimized_code",
+      "base_response": "The greedy approach fails on coins = [1, 3, 4] and amount = 6 because it takes the largest coin first, which is 4. The greedy algorithm always selects the largest possible coin to minimize the number of coins used. In this case, the largest coin is 4, which is the only coin that can be used to make up the remaining amount of 6. Therefore, the greedy approach will always select the largest coin first, resulting in a time complexity of O(n^2), where n is the number of coins. This is notCraig's algorithmic time complexity, which is O(n).",
+      "fine_tuned_response": "What trade-off did you make in your greedy approach? Was it to prioritize the largest possible coin or to prioritize the smallest_csv?",
+      "base_metrics": {
+        "hint_quality_score": 81.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 100
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 66.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 95,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_13",
+      "problem": "two-sum",
+      "test_category": "complexity",
+      "base_response": "Candidate: \"I will iterate through the array, storing each number in a set. Then I will search for the complement. If the complement is not found, I will add the current number to the set and continue iterating.\"",
+      "fine_tuned_response": "Candidate: 'I will iterate through the array, storing each number in a hash table. Then I will check if the complement is already in the hash table. If it is, then I have Redsisted and found a pair that sums up to the target.'",
+      "base_metrics": {
+        "hint_quality_score": 61.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 64.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_14",
+      "problem": "maximum-subarray",
+      "test_category": "complexity",
+      "base_response": "Candidate: 'Yes, we can use a technique called Kadane's algorithm to solve this problem in parallel. This approach involves dividing the array into two halves and finding the maximum sum of each half. By doing so, we can take advantage of the fact that the maximum sum of a subarray can be found in both halves simultaneously.'",
+      "fine_tuned_response": "Candidate: 'Yes, you can use a hash map to store the running sum at each step. This will allow you to skip steps if the current sum is negative. What if the current sum is positive? You can add the current value to the hash map and continue with the next step.'",
+      "base_metrics": {
+        "hint_quality_score": 64.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 61.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_15",
+      "problem": "product-of-array-except-self",
+      "test_category": "edge_case",
+      "base_response": "### Level 2: Directioneus & Data Structure Selection\n\n#### Step 1: Identify Zeros\n- **Zeroes in the Array**: The presence of zero in the array can significantly impact the product of all elements except itself.\n- **Zeroes in the Prefix Sum**: If a zero is present in the prefix sum, it will cancel out with the product of all elements before it.\n\n#### Step 2: Determine the Product of All Elements Before Zero\n- **Prefix Sum**: Calculate the prefix sum of the array.\n- **Product of All Elements Before Zero**: Multiply each element of the prefix sum by its corresponding element in the original array.\n\n#### Step 3: Calculate the Product of All Elements After Zero\n- **Zeroes in the Array**: If a zero is present in the array, it will cancel out with the product of all elements after it.\n- **Product of All Elements After Zero**: Multiply each element of the original array by its corresponding element in the prefix sum.",
+      "fine_tuned_response": "Zeroes in the array can be crucial for avoiding division by zero. Consider two scenarios:\n1. Zero at the start or end of the array.\n2. Zero in the middle of the array.\n\nFor scenario 1, you can initialize `left` and `right` with `1` and then iterate through theEXP array. For scenario 2, you can initialize `left` and `right` with `1` and then iterate through the EXP array from the second element.",
+      "base_metrics": {
+        "hint_quality_score": 60.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      },
+      "fine_tuned_metrics": {
+        "hint_quality_score": 70.6,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 50
+      }
+    }
+  ]
+}

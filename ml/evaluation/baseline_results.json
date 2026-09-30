@@ -1,0 +1,300 @@
+{
+  "total_eval_cases": 15,
+  "aggregate_metrics": {
+    "average_hint_quality_score": 67.69,
+    "average_hint_progression_score": 100.0,
+    "average_dsa_concept_coverage_pct": 11.0,
+    "average_relevance_score": 88.0,
+    "solution_leakage_rate_pct": 0.0,
+    "leakage_incident_count": 0,
+    "average_code_aware_coaching_score": 68.33,
+    "average_complexity_reasoning_score": 76.67
+  },
+  "eval_cases": [
+    {
+      "eval_id": "eval_01",
+      "problem_slug": "two-sum",
+      "interaction_type": "hint",
+      "hint_level": 1,
+      "test_category": "unoptimized_code",
+      "model_response": "**Level 1 \u2014 Conceptual Guidance**\n\nFor 'Two Sum', step back and think about what core property or state you need to track as you traverse the data structure. What information do you need at each step to avoid redundant computation?",
+      "metrics": {
+        "hint_quality_score": 65.3,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 33.3,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_02",
+      "problem_slug": "two-sum",
+      "interaction_type": "hint",
+      "hint_level": 2,
+      "test_category": "unoptimized_code",
+      "model_response": "**Level 2 \u2014 Directional Guidance**\n\nConsider what data structure could provide fast lookups. Would a hash table (dictionary/set) or a two-pointer technique allow you to check relevant values in O(1) or O(N) time?",
+      "metrics": {
+        "hint_quality_score": 88.7,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 66.7,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_03",
+      "problem_slug": "two-sum",
+      "interaction_type": "challenge",
+      "hint_level": null,
+      "test_category": "complexity",
+      "model_response": "**Evaluating Your Explanation:**\n\nGood effort! You noted: \"What is the worst-case space complexity and why?\".\n\nFollow-up challenge: What is the exact worst-case time complexity and space complexity of your approach? How would your algorithm handle an empty input or an input with duplicate values?",
+      "metrics": {
+        "hint_quality_score": 60.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 75
+      }
+    },
+    {
+      "eval_id": "eval_04",
+      "problem_slug": "maximum-subarray",
+      "interaction_type": "hint",
+      "hint_level": 1,
+      "test_category": "conceptual",
+      "model_response": "**Level 1 \u2014 Conceptual Guidance**\n\nFor 'Maximum Subarray', step back and think about what core property or state you need to track as you traverse the data structure. What information do you need at each step to avoid redundant computation?",
+      "metrics": {
+        "hint_quality_score": 60.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_05",
+      "problem_slug": "maximum-subarray",
+      "interaction_type": "challenge",
+      "hint_level": null,
+      "test_category": "edge_case",
+      "model_response": "**Evaluating Your Explanation:**\n\nGood effort! You noted: \"Will my code work if all elements are negative like [-3, -2, -5]?\".\n\nFollow-up challenge: What is the exact worst-case time complexity and space complexity of your approach? How would your algorithm handle an empty input or an input with duplicate values?",
+      "metrics": {
+        "hint_quality_score": 67.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 25.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 75
+      }
+    },
+    {
+      "eval_id": "eval_06",
+      "problem_slug": "valid-parentheses",
+      "interaction_type": "hint",
+      "hint_level": 1,
+      "test_category": "conceptual",
+      "model_response": "**Level 1 \u2014 Conceptual Guidance**\n\nFor 'Valid Parentheses', step back and think about what core property or state you need to track as you traverse the data structure. What information do you need at each step to avoid redundant computation?",
+      "metrics": {
+        "hint_quality_score": 61.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_07",
+      "problem_slug": "valid-parentheses",
+      "interaction_type": "feedback",
+      "hint_level": null,
+      "test_category": "incorrect_code",
+      "model_response": "**Approach:** Hash-based lookup / traversal approach for Valid Parentheses.\n**Correctness:** All test cases passed cleanly.\n**Time Complexity:** O(N) - Linear time traversal.\n**Space Complexity:** O(N) - Auxiliary space for tracking visited states.\n**Edge Cases:** Handled non-empty inputs. Ensure duplicate values and zero/negative boundary conditions are verified.\n**Optimization:** Consider whether in-place modifications or two-pointer techniques can optimize space if input is sorted.",
+      "metrics": {
+        "hint_quality_score": 69.8,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_08",
+      "problem_slug": "merge-two-sorted-lists",
+      "interaction_type": "hint",
+      "hint_level": 3,
+      "test_category": "unoptimized_code",
+      "model_response": "**Level 3 \u2014 Strategic Guidance**\n\nTry storing each element (or index) in a hash map as you iterate through the input. Before adding the current element, check if its required complement or matching condition is already in your map.",
+      "metrics": {
+        "hint_quality_score": 56.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 60,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_09",
+      "problem_slug": "binary-search",
+      "interaction_type": "challenge",
+      "hint_level": null,
+      "test_category": "edge_case",
+      "model_response": "**Evaluating Your Explanation:**\n\nGood effort! You noted: \"My code fails when the array has only 1 element. Why?\".\n\nFollow-up challenge: What is the exact worst-case time complexity and space complexity of your approach? How would your algorithm handle an empty input or an input with duplicate values?",
+      "metrics": {
+        "hint_quality_score": 63.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 80,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 75
+      }
+    },
+    {
+      "eval_id": "eval_10",
+      "problem_slug": "trapping-rain-water",
+      "interaction_type": "hint",
+      "hint_level": 1,
+      "test_category": "conceptual",
+      "model_response": "**Level 1 \u2014 Conceptual Guidance**\n\nFor 'Trapping Rain Water', step back and think about what core property or state you need to track as you traverse the data structure. What information do you need at each step to avoid redundant computation?",
+      "metrics": {
+        "hint_quality_score": 62.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 65,
+        "complexity_reasoning_score": 50
+      }
+    },
+    {
+      "eval_id": "eval_11",
+      "problem_slug": "trapping-rain-water",
+      "interaction_type": "alternative",
+      "hint_level": null,
+      "test_category": "complexity",
+      "model_response": "**Alternative Approaches for Trapping Rain Water:**\n\n### Approach 1: Hash Map (Current Preferred)\n- **Core Idea:** Store visited values in a hash map for O(1) average lookup.\n- **Time Complexity:** O(N)\n- **Space Complexity:** O(N)\n\n### Approach 2: Sorting + Two Pointers\n- **Core Idea:** Sort the array first, then use left and right pointers moving inward based on comparison.\n- **Time Complexity:** O(N log N)\n- **Space Complexity:** O(1) or O(N) depending on sorting algorithm.\n- **Trade-off:** Uses less auxiliary memory, but sorting takes O(N log N) time and alters index positions.",
+      "metrics": {
+        "hint_quality_score": 84.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 40.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 95,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_12",
+      "problem_slug": "coin-change",
+      "interaction_type": "challenge",
+      "hint_level": null,
+      "test_category": "unoptimized_code",
+      "model_response": "**Evaluating Your Explanation:**\n\nGood effort! You noted: \"Why does a greedy approach fail on coins = [1, 3, 4] and amount = 6?\".\n\nFollow-up challenge: What is the exact worst-case time complexity and space complexity of your approach? How would your algorithm handle an empty input or an input with duplicate values?",
+      "metrics": {
+        "hint_quality_score": 71.2,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 100,
+        "complexity_reasoning_score": 75
+      }
+    },
+    {
+      "eval_id": "eval_13",
+      "problem_slug": "two-sum",
+      "interaction_type": "interview",
+      "hint_level": null,
+      "test_category": "complexity",
+      "model_response": "Let's break down Two Sum. Notice that for this question: 'Candidate: 'I will iterate through the array, storing each number in a set. Then I will search for the complement.'', we need to analyze the data structures, time complexity O(N), and space trade-offs.",
+      "metrics": {
+        "hint_quality_score": 72.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_14",
+      "problem_slug": "maximum-subarray",
+      "interaction_type": "interview",
+      "hint_level": null,
+      "test_category": "complexity",
+      "model_response": "Let's break down Maximum Subarray. Notice that for this question: 'Candidate: 'The Kadane approach is O(N) time and O(1) space. Is there any way to parallelize this?'', we need to analyze the data structures, time complexity O(N), and space trade-offs.",
+      "metrics": {
+        "hint_quality_score": 72.0,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 100,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 80,
+        "complexity_reasoning_score": 100
+      }
+    },
+    {
+      "eval_id": "eval_15",
+      "problem_slug": "product-of-array-except-self",
+      "interaction_type": "hint",
+      "hint_level": 2,
+      "test_category": "edge_case",
+      "model_response": "**Level 2 \u2014 Directional Guidance**\n\nConsider what data structure could provide fast lookups. Would a hash table (dictionary/set) or a two-pointer technique allow you to check relevant values in O(1) or O(N) time?",
+      "metrics": {
+        "hint_quality_score": 61.5,
+        "hint_progression_score": 100,
+        "dsa_concept_coverage_pct": 0.0,
+        "relevance_score": 60,
+        "solution_leakage": false,
+        "leakage_severity": "NONE",
+        "leakage_reasons": [],
+        "code_aware_coaching_score": 50,
+        "complexity_reasoning_score": 100
+      }
+    }
+  ]
+}

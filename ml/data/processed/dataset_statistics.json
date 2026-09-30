@@ -1,0 +1,71 @@
+{
+  "overview": {
+    "total_raw_interactions": 104,
+    "total_valid_interactions": 100,
+    "total_rejected_interactions": 4,
+    "duplicate_count": 1,
+    "validation_pass_rate_pct": 96.15
+  },
+  "interaction_type_counts": {
+    "hint": 58,
+    "challenge": 27,
+    "alternative": 2,
+    "feedback": 4,
+    "interview": 9
+  },
+  "rejection_breakdown": {
+    "EMPTY_RESPONSE": 1,
+    "EXTREMELY_SHORT_RESPONSE": 1,
+    "DUPLICATE_RECORD": 1,
+    "COMPLETE_CODE_LEAKAGE": 1
+  },
+  "difficulty_distribution": {
+    "easy": 47,
+    "medium": 50,
+    "hard": 3
+  },
+  "topic_distribution": {
+    "Array": 45,
+    "Hash Table": 32,
+    "Depth-First Search": 21,
+    "String": 20,
+    "Two Pointers": 15,
+    "Tree": 15,
+    "Dynamic Programming": 14,
+    "Breadth-First Search": 12,
+    "Sliding Window": 9,
+    "Binary Tree": 9,
+    "Graphs": 9,
+    "Stack": 8,
+    "Linked List": 8,
+    "Binary Search": 8,
+    "Binary Search Tree": 6,
+    "Recursion": 5,
+    "Prefix Sum": 3,
+    "Sorting": 3,
+    "Greedy": 3,
+    "Design": 3,
+    "Topological Sort": 3,
+    "Math": 3
+  },
+  "hint_level_distribution": {
+    "level_1": 29,
+    "level_2": 28,
+    "level_3": 1,
+    "not_applicable": 42
+  },
+  "text_length_statistics": {
+    "average_input_char_length": 166.68,
+    "average_input_word_count": 26.74,
+    "average_output_char_length": 173.1,
+    "average_output_word_count": 26.45,
+    "min_output_char_length": 51,
+    "max_output_char_length": 281
+  },
+  "splits": {
+    "train": 67,
+    "validation": 16,
+    "test": 17,
+    "total_split_examples": 100
+  }
+}

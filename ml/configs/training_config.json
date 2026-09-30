@@ -1,0 +1,31 @@
+{
+  "phase": "PHASE_6_BASELINE_PREPARATION",
+  "fine_tuning_status": "NOT_EXECUTED_PENDING_EXPLICIT_USER_INSTRUCTION",
+  "planned_hyperparameters": {
+    "trainer": "TRL_SFTTrainer",
+    "dataset_text_field": "messages",
+    "max_seq_length": 2048,
+    "num_train_epochs": 3,
+    "per_device_train_batch_size": 2,
+    "per_device_eval_batch_size": 2,
+    "gradient_accumulation_steps": 8,
+    "effective_batch_size": 16,
+    "learning_rate": 0.0002,
+    "lr_scheduler_type": "cosine",
+    "warmup_ratio": 0.05,
+    "weight_decay": 0.01,
+    "optim": "paged_adamw_8bit",
+    "fp16": false,
+    "bf16": true,
+    "gradient_checkpointing": true,
+    "logging_steps": 10,
+    "save_strategy": "epoch",
+    "evaluation_strategy": "epoch",
+    "seed": 42
+  },
+  "runtime_environment": {
+    "recommended_gpu": "NVIDIA A10G (24GB) or NVIDIA L4 (24GB) or A100 (40GB)",
+    "local_host_environment": "Apple Silicon M3 (8GB Unified RAM) - Insufficient for 7B QLoRA backpropagation, reserved for pipeline management and lightweight inference.",
+    "cloud_training_target": "RunPod / Lambda Labs / Google Cloud / AWS EC2 g5.xlarge"
+  }
+}

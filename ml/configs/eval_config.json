@@ -1,0 +1,28 @@
+{
+  "eval_dataset": "ml/data/evaluation/eval_set.jsonl",
+  "baseline_results_output": "ml/evaluation/baseline_results.json",
+  "dimensions": [
+    "hint_quality_score",
+    "hint_progression_score",
+    "dsa_concept_coverage_pct",
+    "relevance_score",
+    "solution_leakage_rate_pct",
+    "code_aware_coaching_score",
+    "complexity_reasoning_score"
+  ],
+  "leakage_detector": {
+    "ast_function_detection": true,
+    "max_level_1_code_ratio": 0.15,
+    "max_level_2_code_ratio": 0.30,
+    "premature_algorithm_spoilers": [
+      "kadane",
+      "boyer-moore",
+      "floyd",
+      "dijkstra",
+      "kmp",
+      "rabin-karp",
+      "tarjan",
+      "kosaraju"
+    ]
+  }
+}

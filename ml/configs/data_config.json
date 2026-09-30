@@ -1,0 +1,47 @@
+{
+  "paths": {
+    "raw_dataset": "ml/data/raw/raw_interactions.jsonl",
+    "cleaned_dataset": "ml/data/processed/cleaned_interactions.jsonl",
+    "rejected_dataset": "ml/data/processed/rejected_interactions.jsonl",
+    "qlora_formatted": "ml/data/processed/qlora_formatted.jsonl",
+    "train_split": "ml/data/processed/train.jsonl",
+    "validation_split": "ml/data/processed/validation.jsonl",
+    "test_split": "ml/data/processed/test.jsonl",
+    "held_out_eval_set": "ml/data/evaluation/eval_set.jsonl",
+    "statistics_report": "ml/data/processed/dataset_statistics.json"
+  },
+  "split_settings": {
+    "strategy": "session_and_problem_aware",
+    "train_ratio": 0.70,
+    "val_ratio": 0.15,
+    "test_ratio": 0.15,
+    "random_seed": 42,
+    "held_out_problems": [
+      "valid-parentheses",
+      "coin-change"
+    ]
+  },
+  "filtering_rules": {
+    "min_response_char_length": 15,
+    "allowed_interaction_types": [
+      "hint",
+      "challenge",
+      "alternative",
+      "feedback",
+      "interview"
+    ],
+    "deduplication_keys": [
+      "problem_id",
+      "interaction_type",
+      "hint_level",
+      "student_input",
+      "student_code",
+      "coach_response"
+    ],
+    "solution_leakage_detection": {
+      "level_1_max_code_ratio": 0.15,
+      "level_2_max_code_ratio": 0.30,
+      "block_complete_function_def": true
+    }
+  }
+}

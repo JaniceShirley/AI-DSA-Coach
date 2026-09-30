@@ -102,3 +102,24 @@ class HistoryView(APIView):
         
         serializer = CoachingInteractionSerializer(interactions, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class CoachModeView(APIView):
+    """
+    Returns current AI Coach model backend mode (e.g. fine-tuned, base, mock)
+    and version metadata for development and admin visibility.
+    """
+    permission_classes = []
+
+    def get(self, request):
+        provider = ai_coach_service.provider
+        if hasattr(provider, 'get_mode_info'):
+            info = provider.get_mode_info()
+        else:
+            import os
+            backend_mode = os.getenv("AI_MODEL_BACKEND", "finetuned").lower()
+            info = {
+                "mode": backend_mode,
+                "is_fine_tuned": "fine" in backend_mode,
+                "model_version": "dsa-coach-qlora-v1"
+            }
+        return Response(info, status=status.HTTP_200_OK)

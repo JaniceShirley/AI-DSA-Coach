@@ -1,0 +1,62 @@
+# ==============================================================================
+# QLoRA Fine-Tuning Configuration — AI DSA Coach (Phase 6B)
+# ==============================================================================
+
+model:
+  # Primary target for local compute execution (Apple Silicon M3 8GB Unified RAM):
+  model_name_or_path: "Qwen/Qwen2.5-Coder-0.5B-Instruct"
+  # Cloud GPU production target (e.g. 1x NVIDIA A10G 24GB on RunPod / AWS EC2 g5.xlarge):
+  cloud_target_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+  trust_remote_code: true
+  use_fast_tokenizer: true
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true
+  # float32 for CPU/MPS stability; bfloat16 on CUDA environments
+  bnb_4bit_compute_dtype: "float32"
+
+peft_lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+
+data:
+  train_file: "ml/data/processed/train.jsonl"
+  validation_file: "ml/data/processed/validation.jsonl"
+  test_file: "ml/data/processed/test.jsonl"
+  max_seq_length: 1024
+
+training:
+  output_dir: "ml/models/checkpoints"
+  adapter_output_dir: "ml/models/adapters/dsa-coach-lora"
+  runs_dir: "ml/runs"
+  num_train_epochs: 3
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0002
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  logging_steps: 5
+  eval_strategy: "steps"
+  eval_steps: 10
+  save_strategy: "steps"
+  save_steps: 20
+  save_total_limit: 2
+  seed: 42
+  gradient_checkpointing: false
+  fp16: false
+  bf16: false

@@ -178,6 +178,10 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
                 Guided Learning
               </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center space-x-1" title="Model: Qwen2.5-Coder-0.5B + dsa-coach-lora-v1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                <span>QLoRA Active</span>
+              </span>
             </h3>
             <p className="text-xs text-slate-400">
               Personalized progressive hints & code-aware analysis without solution leakage.

@@ -1,0 +1,30 @@
+# ==============================================================================
+# ML / Fine-Tuning Pipeline Requirements (Phase 6+)
+# Keep these isolated from backend Django production dependencies!
+#
+# NOTE: QLoRA training with bitsandbytes 4-bit CUDA quantization requires an NVIDIA
+# GPU environment (e.g. RunPod, Lambda Labs, AWS g5/p4, Google Colab Pro).
+# On macOS (Apple Silicon), use PyTorch MPS or MLX for local testing.
+# ==============================================================================
+
+# Core Hugging Face Ecosystem for QLoRA & SFT
+transformers>=4.44.0
+datasets>=2.20.0
+peft>=0.12.0
+trl>=0.9.6
+accelerate>=0.33.0
+evaluate>=0.4.2
+
+# 4-bit Quantization (Linux / CUDA GPU environment)
+bitsandbytes>=0.43.0; sys_platform != "darwin"
+
+# Data Analysis, Metrics & Utilities
+scikit-learn>=1.5.0
+pyyaml>=6.0.1
+pydantic>=2.7.0
+tqdm>=4.66.0
+numpy>=1.26.0
+pandas>=2.2.0
+
+# Optional Apple Silicon MLX Alternative for local Mac M-series inference
+# mlx-lm>=0.18.0; sys_platform == "darwin"

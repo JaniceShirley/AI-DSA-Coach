@@ -1,0 +1,16 @@
+{
+  "hardware_environment": {
+    "platform": "darwin",
+    "architecture": "Apple Silicon M3 (arm64, 8 CPU cores)",
+    "unified_ram_gb": 8
+  },
+  "metrics": {
+    "model_loading_time_seconds": 11.249,
+    "process_memory_mb": 569.97,
+    "model_memory_footprint_mb": 548.86,
+    "first_response_latency_seconds": 3.71,
+    "average_generation_latency_seconds": 3.852,
+    "throughput_tokens_per_second": 12.38
+  },
+  "sample_output": "Start by breaking down the problem into smaller sub-problems. What properties of the input arrays can you leverage to reduce time complexity? Is there a pattern in the space-time tradeoff that can be exploited?"
+}
