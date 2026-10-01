@@ -23,12 +23,16 @@ export const RegisterPage: React.FC = () => {
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: Record<string, string[]> } };
+        const axiosErr = err as { response?: { data?: unknown } };
         const errors = axiosErr.response?.data;
-        if (errors) {
-          const firstKey = Object.keys(errors)[0];
-          const firstErr = Array.isArray(errors[firstKey]) ? errors[firstKey][0] : errors[firstKey];
+        if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
+          const dict = errors as Record<string, unknown>;
+          const firstKey = Object.keys(dict)[0];
+          const val = dict[firstKey];
+          const firstErr = Array.isArray(val) ? val[0] : val;
           setError(`${firstKey}: ${firstErr}`);
+        } else if (typeof errors === 'string' && !errors.trim().startsWith('<')) {
+          setError(errors);
         } else {
           setError('Registration failed. Please check your information.');
         }
