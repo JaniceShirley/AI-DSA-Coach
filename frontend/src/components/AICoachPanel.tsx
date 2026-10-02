@@ -13,8 +13,11 @@ import {
   MessageSquare,
   ChevronRight,
   ShieldCheck,
-  Zap
+  Zap,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
+import { speak, stopSpeaking } from '../utils/speech';
 
 interface AICoachPanelProps {
   problemId: number;
@@ -30,6 +33,27 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
   const [activeMode, setActiveMode] = useState<'hint' | 'challenge' | 'alternative' | 'feedback'>('hint');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [speakingText, setSpeakingText] = useState<string | null>(null);
+
+  const handleSpeak = (text: string) => {
+    if (speakingText === text) {
+      stopSpeaking();
+      setSpeakingText(null);
+      return;
+    }
+    speak(
+      text,
+      () => setSpeakingText(text),
+      () => setSpeakingText(null),
+      () => setSpeakingText(null)
+    );
+  };
+
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   // Hints state
   const [hintText, setHintText] = useState<string | null>(null);
@@ -313,9 +337,29 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
                   <span className={`text-xs px-3 py-1 rounded-full font-bold border ${getHintLevelBadge(currentHintLevel).color}`}>
                     {getHintLevelBadge(currentHintLevel).label}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">
-                    Total Hints Used: {hintsUsed}
-                  </span>
+                  <div className="flex items-center space-x-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSpeak(hintText)}
+                      className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center space-x-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 transition-colors"
+                      title="Listen to hint spoken aloud"
+                    >
+                      {speakingText === hintText ? (
+                        <>
+                          <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Stop</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-3.5 h-3.5" />
+                          <span>Listen</span>
+                        </>
+                      )}
+                    </button>
+                    <span className="text-xs text-slate-400 font-mono">
+                      Total Hints Used: {hintsUsed}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-line font-sans">
@@ -358,9 +402,31 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
         {!loading && !error && activeMode === 'challenge' && (
           <div className="space-y-4">
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 shadow-inner">
-              <div className="flex items-center space-x-2 text-amber-400 border-b border-slate-800 pb-3">
-                <BrainCircuit className="w-5 h-5" />
-                <h4 className="text-sm font-bold text-white">Challenge Your Understanding</h4>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2 text-amber-400">
+                  <BrainCircuit className="w-5 h-5" />
+                  <h4 className="text-sm font-bold text-white">Challenge Your Understanding</h4>
+                </div>
+                {challengeText && (
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(challengeText)}
+                    className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center space-x-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 transition-colors"
+                    title="Listen to challenge question"
+                  >
+                    {speakingText === challengeText ? (
+                      <>
+                        <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>Listen</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {challengeText ? (
@@ -409,9 +475,31 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
         {!loading && !error && activeMode === 'alternative' && (
           <div className="space-y-4">
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 shadow-inner">
-              <div className="flex items-center space-x-2 text-blue-400 border-b border-slate-800 pb-3">
-                <Compass className="w-5 h-5" />
-                <h4 className="text-sm font-bold text-white">Explore Alternative Approaches</h4>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2 text-blue-400">
+                  <Compass className="w-5 h-5" />
+                  <h4 className="text-sm font-bold text-white">Explore Alternative Approaches</h4>
+                </div>
+                {alternativeText && (
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(alternativeText)}
+                    className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center space-x-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/30 transition-colors"
+                    title="Listen to alternative approach"
+                  >
+                    {speakingText === alternativeText ? (
+                      <>
+                        <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>Listen</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {alternativeText ? (

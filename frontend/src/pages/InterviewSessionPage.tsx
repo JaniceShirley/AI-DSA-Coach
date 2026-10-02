@@ -14,6 +14,12 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { CodeEditor } from '../components/CodeEditor';
 import { getDifficultyBadgeClass } from '../utils/difficultyColors';
 import {
+  speak,
+  stopSpeaking,
+  createSpeechRecognizer,
+  type SpeechRecognizerController,
+} from '../utils/speech';
+import {
   Send,
   Code2,
   BrainCircuit,
@@ -23,7 +29,11 @@ import {
   RotateCcw,
   Sparkles,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  Volume2,
+  VolumeX,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 
 export const InterviewSessionPage: React.FC = () => {
@@ -36,6 +46,13 @@ export const InterviewSessionPage: React.FC = () => {
   const [studentInput, setStudentInput] = useState<string>('');
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [evaluation, setEvaluation] = useState<InterviewEvaluation | null>(null);
+
+  // Speech (Voice Mode & Speech-to-Text) State
+  const [autoSpeak, setAutoSpeak] = useState<boolean>(true);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<number | null>(null);
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const recognizerRef = useRef<SpeechRecognizerController | null>(null);
 
   // Split View & Code Execution State
   const [showEditor, setShowEditor] = useState<boolean>(false);
@@ -50,6 +67,10 @@ export const InterviewSessionPage: React.FC = () => {
     if (sessionId) {
       loadSessionData(Number(sessionId));
     }
+    return () => {
+      stopSpeaking();
+      recognizerRef.current?.abort();
+    };
   }, [sessionId]);
 
   useEffect(() => {
@@ -78,8 +99,76 @@ export const InterviewSessionPage: React.FC = () => {
     }
   };
 
+  const handleSpeakMessage = (text: string, msgId: number) => {
+    if (isSpeaking && speakingMsgId === msgId) {
+      handleStopSpeaking();
+      return;
+    }
+
+    speak(
+      text,
+      () => {
+        setIsSpeaking(true);
+        setSpeakingMsgId(msgId);
+      },
+      () => {
+        setIsSpeaking(false);
+        setSpeakingMsgId(null);
+      },
+      (err) => {
+        console.warn('Speech synthesis error:', err);
+        setIsSpeaking(false);
+        setSpeakingMsgId(null);
+      }
+    );
+  };
+
+  const handleStopSpeaking = () => {
+    stopSpeaking();
+    setIsSpeaking(false);
+    setSpeakingMsgId(null);
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognizerRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    // Stop interviewer voice playback if currently speaking
+    handleStopSpeaking();
+
+    const recognizer = createSpeechRecognizer(
+      (transcript) => {
+        setStudentInput(transcript);
+      },
+      () => {
+        setIsListening(false);
+      },
+      (err) => {
+        console.warn('Speech recognizer error:', err);
+        setIsListening(false);
+      }
+    );
+
+    if (recognizer) {
+      recognizerRef.current = recognizer;
+      recognizer.start();
+      setIsListening(true);
+    } else {
+      alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!studentInput.trim() || !session || sending) return;
+
+    if (isListening) {
+      recognizerRef.current?.stop();
+      setIsListening(false);
+    }
+    handleStopSpeaking();
 
     const userText = studentInput.trim();
     setStudentInput('');
@@ -107,6 +196,10 @@ export const InterviewSessionPage: React.FC = () => {
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMsg]);
+
+      if (autoSpeak) {
+        handleSpeakMessage(res.message, aiMsg.id);
+      }
 
       if (res.stage === 'CODING') {
         setShowEditor(true);
@@ -172,6 +265,9 @@ export const InterviewSessionPage: React.FC = () => {
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMsg]);
+      if (autoSpeak) {
+        handleSpeakMessage(codeTurn.message, aiMsg.id);
+      }
     } catch (err) {
       console.error('Submit code error:', err);
     } finally {
@@ -302,14 +398,69 @@ export const InterviewSessionPage: React.FC = () => {
       <div className={`grid grid-cols-1 ${showEditor ? 'lg:grid-cols-12' : 'max-w-4xl mx-auto'} gap-6`}>
         {/* LEFT / CHAT PANEL: Technical Interview Dialogue */}
         <div className={`${showEditor ? 'lg:col-span-6' : 'w-full'} flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-[550px]`}>
-          <div className="bg-slate-950 border-b border-slate-800 p-3.5 flex items-center justify-between">
+          <div className="bg-slate-950 border-b border-slate-800 p-3.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center space-x-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-4 h-4" />
               <span>Interview Dialogue</span>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Stage: {session.current_stage}
-            </span>
+
+            <div className="flex items-center space-x-2">
+              {isSpeaking && (
+                <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs animate-pulse">
+                  <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="flex space-x-0.5">
+                    <span className="w-1 h-2 bg-indigo-400 rounded-full animate-bounce" />
+                    <span className="w-1 h-3.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.15s]" />
+                    <span className="w-1 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.3s]" />
+                  </span>
+                  <span className="text-[11px] font-medium hidden sm:inline">Speaking</span>
+                  <button
+                    type="button"
+                    onClick={handleStopSpeaking}
+                    className="ml-1 text-slate-400 hover:text-white"
+                    title="Stop audio playback"
+                  >
+                    <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (autoSpeak && isSpeaking) {
+                    handleStopSpeaking();
+                  }
+                  setAutoSpeak(!autoSpeak);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all border ${
+                  autoSpeak
+                    ? 'bg-indigo-600/25 border-indigo-500/40 text-indigo-200 hover:bg-indigo-600/35'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+                title={autoSpeak ? "Voice mode enabled: Interviewer speaks questions aloud automatically" : "Voice mode muted: Click to enable speech"}
+              >
+                {autoSpeak ? <Volume2 className="w-3.5 h-3.5 text-indigo-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
+                <span>Voice: {autoSpeak ? 'ON' : 'OFF'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const latestAI = [...messages].reverse().find((m) => m.role === 'AI_INTERVIEWER');
+                  if (latestAI) handleSpeakMessage(latestAI.message, latestAI.id);
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-300 hover:text-white"
+                title="Play current interviewer question aloud"
+              >
+                <Play className="w-3 h-3 fill-indigo-400 text-indigo-400" />
+                <span>Play Question</span>
+              </button>
+
+              <span className="text-[11px] text-slate-400 font-mono bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                Stage: {session.current_stage}
+              </span>
+            </div>
           </div>
 
           {/* Messages Stream */}
@@ -334,10 +485,34 @@ export const InterviewSessionPage: React.FC = () => {
                         : 'bg-indigo-600 text-white rounded-br-none'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[10px] opacity-70 mb-1 border-b border-white/10 pb-1">
-                      <span className="font-bold uppercase tracking-wider">
+                    <div className="flex items-center justify-between text-[10px] opacity-80 mb-1 border-b border-white/10 pb-1">
+                      <span className="font-bold uppercase tracking-wider text-indigo-300">
                         {isAI ? 'Senior Interviewer' : 'You (Candidate)'}
                       </span>
+                      {isAI && (
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakMessage(msg.message, msg.id || index)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center space-x-1 transition-all ${
+                            speakingMsgId === (msg.id || index)
+                              ? 'bg-rose-500/30 text-rose-200 border border-rose-500/40'
+                              : 'bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30'
+                          }`}
+                          title={speakingMsgId === (msg.id || index) ? "Stop speech" : "Read aloud"}
+                        >
+                          {speakingMsgId === (msg.id || index) ? (
+                            <>
+                              <VolumeX className="w-3 h-3 text-rose-400" />
+                              <span>Stop</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3 h-3" />
+                              <span>Speak</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                     <div>{msg.message}</div>
                   </div>
@@ -363,7 +538,47 @@ export const InterviewSessionPage: React.FC = () => {
           {/* Chat Input Box */}
           {session.status === 'IN_PROGRESS' ? (
             <div className="p-3.5 bg-slate-950 border-t border-slate-800 space-y-2">
+              {isListening && (
+                <div className="flex items-center justify-between px-3 py-2 bg-rose-500/15 border border-rose-500/40 rounded-xl text-rose-300 text-xs">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                    <span className="font-bold">Live Voice Dictation:</span>
+                    <span>Speak clearly into your microphone — speech will transcribe into the box...</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className="text-[11px] font-bold text-rose-200 hover:text-white underline ml-2"
+                  >
+                    Done Speaking
+                  </button>
+                </div>
+              )}
+
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all border ${
+                    isListening
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-600/30 animate-pulse'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800 hover:border-slate-700'
+                  }`}
+                  title={isListening ? "Click to stop microphone" : "Speak your response into microphone"}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="w-4 h-4 text-white" />
+                      <span className="hidden sm:inline">Listening...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4 text-indigo-400" />
+                      <span className="hidden sm:inline">Speak</span>
+                    </>
+                  )}
+                </button>
+
                 <textarea
                   value={studentInput}
                   onChange={(e) => setStudentInput(e.target.value)}
@@ -374,7 +589,11 @@ export const InterviewSessionPage: React.FC = () => {
                     }
                   }}
                   rows={2}
-                  placeholder="Explain your approach, derive Big-O complexity, or answer interviewer question (Press Enter to send)..."
+                  placeholder={
+                    isListening
+                      ? 'Listening... speak your response now...'
+                      : 'Explain your approach, derive Big-O complexity, or speak your answer (Click Speak or Press Enter)...'
+                  }
                   className="flex-grow bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500 resize-none font-sans"
                 />
                 <button
