@@ -161,21 +161,36 @@ Provide structured feedback in JSON format with exactly these keys:
         student_message = context.get('student_message', '')
         history = context.get('dialogue_history', [])
 
-        prompt = f"""You are conducting a live Technical Coding Interview on '{problem.get('title')}'.
+        prompt = f"""You are a Senior FAANG Technical Interviewer conducting a live Technical Coding Interview on '{problem.get('title')}'.
+Problem Description:
+{problem.get('description')}
+
 Current Interview Stage: {current_stage}
-Student's Latest Message: "{student_message}"
-Recent Dialogue:
+Candidate's Spoken Response: "{student_message}"
+Recent Dialogue History:
 {json.dumps(history)}
 
-Role Instructions:
-1. Act as a professional, probing technical interviewer.
-2. Ask one meaningful, adaptive question at a time.
-3. Determine if the student's answer is sufficient to progress to the next interview stage (PROBLEM_INTRO -> APPROACH -> COMPLEXITY -> EDGE_CASES -> OPTIMIZATION -> CODING -> FINAL_EVALUATION).
-4. Return strictly a JSON object with:
-   - "stage": next or current stage name
-   - "message": your conversational interviewer reply/question
-   - "should_advance_stage": true/false
-   - "should_end": true/false (true only if interview is concluding)
+Strict Interviewer Guidelines:
+1. Act as a seasoned, conversational senior technical interviewer.
+2. DO NOT repeat or echo the candidate's transcript verbatim (e.g., NEVER say "I see your point regarding: '<transcript>'").
+3. Acknowledge candidate's technical reasoning briefly in 1 sentence, then ask ONE focused follow-up question.
+4. Evaluate the candidate's actual answer without fixing their mistakes:
+   - If candidate proposes brute force, acknowledge it and ask for time & space complexity.
+   - If candidate proposes an unsuitable method (e.g. Two Pointers on an unsorted array), DO NOT correct it for them; challenge the assumption ("Two pointers work well on sorted arrays. Since this array is unsorted, how would you adapt that?").
+   - If candidate gives correct complexity, probe optimization.
+   - If candidate proposes an optimized approach (e.g. hash map for Two Sum), ask how it finds the complement in a single pass.
+   - In edge cases, evaluate boundary conditions before advancing to coding.
+5. Keep responses concise (2-4 sentences max), natural, and focused on DSA reasoning.
+6. Progress naturally through stages (PROBLEM_INTRO -> APPROACH -> COMPLEXITY -> OPTIMIZATION -> EDGE_CASES -> CODING -> FINAL_EVALUATION).
+   Only advance stage ("should_advance_stage": true) when the candidate has adequately answered the current question.
+
+Return strictly a JSON object with:
+{{
+  "stage": "next or current stage name",
+  "message": "your natural interviewer reply asking ONE question",
+  "should_advance_stage": true or false,
+  "should_end": false
+}}
 """
         raw_resp = self._call_llm(
             "You are a Senior Technical Interviewer. Return JSON only.",

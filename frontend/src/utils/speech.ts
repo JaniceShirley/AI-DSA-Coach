@@ -120,6 +120,82 @@ export const speak = (
   };
 };
 
+/**
+ * Normalizes acoustic speech recognition errors for DSA / coding interviews.
+ * Specifically corrects phonetic misrecognitions of technical terms
+ * without modifying the candidate's actual conceptual intention, claims, or errors.
+ */
+export const normalizeDsaSpeech = (rawText: string): string => {
+  if (!rawText) return '';
+
+  let text = rawText;
+
+  // 1. Common acoustic misrecognitions for "brute force"
+  text = text.replace(/\b(?:root|route|brew|fruit|brood|rude)\s*(?:force|froze|frost)\b/gi, 'brute force');
+  text = text.replace(/\bbrut\s+force\b/gi, 'brute force');
+
+  // 2. Misrecognitions for "iterate" / "iteration"
+  text = text.replace(/\bhydrate(?:\s+through|\s+from|\s+over|\s+across|\s+the)?\b/gi, 'iterate through');
+  text = text.replace(/\bhydrate\b/gi, 'iterate');
+  text = text.replace(/\b(?:eye\s*iterate|eye\s*rate)\b/gi, 'iterate');
+  text = text.replace(/\brate\s+through\s+the\s+array\b/gi, 'iterate through the array');
+
+  // 3. Two Pointers terminology (keep singular/plural clean without changing concept)
+  text = text.replace(/\b(?:to|too)\s+pointers?\b/gi, 'two pointers');
+  text = text.replace(/\btwo\s+pointer\b/gi, 'two pointers');
+  text = text.replace(/\btwo\s+point\b/gi, 'two pointers');
+
+  // 4. Hash Map / Hash Table terminology
+  text = text.replace(/\b(?:cash|hush)\s*maps?\b/gi, 'hash map');
+  text = text.replace(/\bhashmap\b/gi, 'hash map');
+  text = text.replace(/\b(?:cash|hush)\s*tables?\b/gi, 'hash table');
+  text = text.replace(/\bhashtable\b/gi, 'hash table');
+  text = text.replace(/\bhash\s*sets?\b/gi, 'hash set');
+  text = text.replace(/\bhashset\b/gi, 'hash set');
+
+  // 5. Complement in arithmetic/sum context
+  text = text.replace(/\bcompliments?\b/gi, 'complement');
+
+  // 6. Time and Space Complexity notation
+  // O(n^2) / O(n squared)
+  text = text.replace(/\b(?:big\s*)?(?:oh|o|order)\s+of\s+n\s*(?:squared|square|\^2|2)\b/gi, 'O(n²)');
+  text = text.replace(/\b(?:big\s*)?o\s*\(\s*n\s*(?:squared|square|\^2|2)\s*\)/gi, 'O(n²)');
+  text = text.replace(/\boh\s*of\s*n\s*square\b/gi, 'O(n²)');
+  text = text.replace(/\boh\s*of\s*n\s*squared\b/gi, 'O(n²)');
+
+  // O(n log n)
+  text = text.replace(/\b(?:big\s*)?(?:oh|o|order)\s+of\s+n\s*log\s*n\b/gi, 'O(n log n)');
+  text = text.replace(/\b(?:big\s*)?o\s*\(\s*n\s*log\s*n\s*\)/gi, 'O(n log n)');
+
+  // O(log n)
+  text = text.replace(/\b(?:big\s*)?(?:oh|o|order)\s+of\s+log\s*n\b/gi, 'O(log n)');
+  text = text.replace(/\b(?:big\s*)?o\s*\(\s*log\s*n\s*\)/gi, 'O(log n)');
+
+  // O(n)
+  text = text.replace(/\b(?:big\s*)?(?:oh|o|order)\s+of\s+n\b/gi, 'O(n)');
+  text = text.replace(/\b(?:big\s*)?o\s*\(\s*n\s*\)/gi, 'O(n)');
+
+  // O(1)
+  text = text.replace(/\b(?:big\s*)?(?:oh|o|order)\s+of\s+(?:one|1)\b/gi, 'O(1)');
+  text = text.replace(/\b(?:big\s*)?o\s*\(\s*1\s*\)/gi, 'O(1)');
+
+  // Complexity terms
+  text = text.replace(/\btime\s+complexly\b/gi, 'time complexity');
+  text = text.replace(/\bspace\s+complexly\b/gi, 'space complexity');
+  text = text.replace(/\bauxiliary\s+space\b/gi, 'auxiliary space');
+
+  // 7. Other common DSA acoustic errors
+  text = text.replace(/\bbinary\s+surge\b/gi, 'binary search');
+  text = text.replace(/\b(?:link|lynx)\s+list\b/gi, 'linked list');
+  text = text.replace(/\bcall\s+stuck\b/gi, 'call stack');
+  text = text.replace(/\bkey\s*values?\b/gi, 'key-value');
+
+  // 8. Clean up extra spaces
+  text = text.replace(/\s{2,}/g, ' ').trim();
+
+  return text;
+};
+
 export const isSpeechRecognitionSupported = (): boolean => {
   if (typeof window === 'undefined') return false;
   return Boolean(
@@ -128,6 +204,12 @@ export const isSpeechRecognitionSupported = (): boolean => {
   );
 };
 
+export interface SpeechTranscriptResult {
+  final: string;
+  interim: string;
+  full: string;
+}
+
 export interface SpeechRecognizerController {
   start: () => void;
   stop: () => void;
@@ -135,7 +217,7 @@ export interface SpeechRecognizerController {
 }
 
 export const createSpeechRecognizer = (
-  onTranscript: (transcript: string, isFinal: boolean) => void,
+  onTranscript: (result: SpeechTranscriptResult) => void,
   onEnd?: () => void,
   onError?: (error: unknown) => void
 ): SpeechRecognizerController | null => {
@@ -153,22 +235,30 @@ export const createSpeechRecognizer = (
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
+  recognition.maxAlternatives = 1;
 
   recognition.onresult = (event: any) => {
-    let fullTranscript = '';
-    let isFinal = false;
+    let sessionFinal = '';
+    let sessionInterim = '';
 
     for (let i = 0; i < event.results.length; i++) {
       const result = event.results[i];
-      if (result[0]) {
-        fullTranscript += result[0].transcript;
-      }
+      const text = result[0]?.transcript || '';
       if (result.isFinal) {
-        isFinal = true;
+        sessionFinal += (sessionFinal ? ' ' : '') + text.trim();
+      } else {
+        sessionInterim += (sessionInterim ? ' ' : '') + text.trim();
       }
     }
 
-    onTranscript(fullTranscript, isFinal);
+    const normFinal = normalizeDsaSpeech(sessionFinal);
+    const normInterim = normalizeDsaSpeech(sessionInterim);
+
+    onTranscript({
+      final: normFinal,
+      interim: normInterim,
+      full: [normFinal, normInterim].filter(Boolean).join(' ').trim(),
+    });
   };
 
   recognition.onerror = (event: any) => {

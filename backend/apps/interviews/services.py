@@ -7,6 +7,7 @@ from apps.submissions.models import Submission
 from apps.progress.models import UserProblemProgress
 from apps.coaching.providers import get_ai_provider
 from .models import InterviewSession, InterviewMessage, InterviewEvaluation
+from .speech_normalizer import normalize_dsa_transcript
 
 logger = logging.getLogger(__name__)
 
@@ -124,11 +125,14 @@ class InterviewService:
                 "should_end": True
             }
 
+        # Clean & normalize speech-to-text transcript
+        cleaned_message = normalize_dsa_transcript(student_message) or student_message.strip()
+
         # Store student message
         InterviewMessage.objects.create(
             interview_session=session,
             role='STUDENT',
-            message=student_message,
+            message=cleaned_message,
             stage=session.current_stage
         )
 
@@ -156,7 +160,7 @@ class InterviewService:
                 "topics": session.problem.topics,
             },
             "stage": session.current_stage,
-            "student_message": student_message,
+            "student_message": cleaned_message,
             "dialogue_history": history,
             "latest_submission": latest_sub_dict,
         }

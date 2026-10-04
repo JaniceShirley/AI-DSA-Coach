@@ -265,3 +265,61 @@ class TestInterviewSystem:
         assert data['recommended_problem'] is not None
         # Recommended problem should prioritize Graph/DFS from evaluation
         assert "Graph" in data['recommended_problem']['topics']
+
+    def test_speech_normalizer_handles_garbled_dsa_terms(self):
+        from apps.interviews.speech_normalizer import normalize_dsa_transcript
+
+        # Raw misrecognized speech example from user report:
+        garbled = "I will first use the you know what root force approach that is I will hydrate from I will use root froze approach"
+        normalized = normalize_dsa_transcript(garbled)
+
+        assert "brute force" in normalized
+        assert "root force" not in normalized
+        assert "iterate through" in normalized
+        assert "hydrate from" not in normalized
+
+        # Complexity terms
+        comp_raw = "It takes oh of n square time and oh of one space complexity"
+        comp_norm = normalize_dsa_transcript(comp_raw)
+        assert "O(n²)" in comp_norm
+        assert "O(1)" in comp_norm
+
+        # Preserves candidate errors and does not invent solutions
+        mistake = "I'll use two pointer on an unsorted array"
+        mistake_norm = normalize_dsa_transcript(mistake)
+        assert "two pointers" in mistake_norm
+        assert "unsorted array" in mistake_norm
+        assert "hash map" not in mistake_norm  # MUST NOT rewrite to correct answer
+
+    def test_interviewer_two_sum_turn_progression_and_no_echo(self, api_client, create_user, create_problem):
+        user = create_user()
+        problem = create_problem()
+        api_client.force_authenticate(user=user)
+
+        start_res = api_client.post(reverse('interview-start'), {'problem_id': problem.id}).json()
+        session_id = start_res['session_id']
+        respond_url = reverse('interview-respond', kwargs={'session_id': session_id})
+
+        # Turn 1: Candidate proposes brute force with misrecognized words
+        t1 = api_client.post(respond_url, {'message': "I will use root force and hydrate from every pair"}).json()
+        assert t1['stage'] == 'COMPLEXITY'
+        # Crucial requirement: No raw echoing like "I see your point regarding: ..."
+        assert "I see your point regarding" not in t1['message']
+        assert "hydrate from" not in t1['message']
+        assert "time" in t1['message'].lower() or "complexity" in t1['message'].lower()
+
+        # Turn 2: Candidate provides complexity
+        t2 = api_client.post(respond_url, {'message': "It is oh of n square time and oh of one space"}).json()
+        assert t2['stage'] == 'OPTIMIZATION'
+        assert "O(n²)" in t2['message'] or "improve" in t2['message'].lower() or "optimize" in t2['message'].lower()
+
+        # Turn 3: Candidate proposes two pointers on unsorted array (mistake)
+        t3 = api_client.post(respond_url, {'message': "I can use two pointers on the unsorted array"}).json()
+        # Should challenge the candidate and NOT jump stage to CODING or pretend it's a hash map
+        assert "sorted" in t3['message'].lower()
+        assert "unsorted" in t3['message'].lower()
+
+        # Turn 4: Candidate proposes hash map
+        t4 = api_client.post(respond_url, {'message': "Instead I will use a hash map to find the complement"}).json()
+        assert "complement" in t4['message'].lower() or "hash map" in t4['message'].lower()
+

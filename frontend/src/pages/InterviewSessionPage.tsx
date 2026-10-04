@@ -52,6 +52,8 @@ export const InterviewSessionPage: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<number | null>(null);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [interimTranscript, setInterimTranscript] = useState<string>('');
+  const baseInputRef = useRef<string>('');
   const recognizerRef = useRef<SpeechRecognizerController | null>(null);
 
   // Split View & Code Execution State
@@ -133,22 +135,31 @@ export const InterviewSessionPage: React.FC = () => {
     if (isListening) {
       recognizerRef.current?.stop();
       setIsListening(false);
+      setInterimTranscript('');
       return;
     }
 
     // Stop interviewer voice playback if currently speaking
     handleStopSpeaking();
+    baseInputRef.current = studentInput.trim();
+    setInterimTranscript('');
 
     const recognizer = createSpeechRecognizer(
-      (transcript) => {
-        setStudentInput(transcript);
+      (result) => {
+        if (result.final) {
+          const combined = [baseInputRef.current, result.final].filter(Boolean).join(' ');
+          setStudentInput(combined);
+        }
+        setInterimTranscript(result.interim);
       },
       () => {
         setIsListening(false);
+        setInterimTranscript('');
       },
       (err) => {
         console.warn('Speech recognizer error:', err);
         setIsListening(false);
+        setInterimTranscript('');
       }
     );
 
@@ -167,11 +178,14 @@ export const InterviewSessionPage: React.FC = () => {
     if (isListening) {
       recognizerRef.current?.stop();
       setIsListening(false);
+      setInterimTranscript('');
     }
     handleStopSpeaking();
 
     const userText = studentInput.trim();
     setStudentInput('');
+    baseInputRef.current = '';
+    setInterimTranscript('');
     setSending(true);
 
     // Optimistically add student message
@@ -539,19 +553,27 @@ export const InterviewSessionPage: React.FC = () => {
           {session.status === 'IN_PROGRESS' ? (
             <div className="p-3.5 bg-slate-950 border-t border-slate-800 space-y-2">
               {isListening && (
-                <div className="flex items-center justify-between px-3 py-2 bg-rose-500/15 border border-rose-500/40 rounded-xl text-rose-300 text-xs">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-                    <span className="font-bold">Live Voice Dictation:</span>
-                    <span>Speak clearly into your microphone — speech will transcribe into the box...</span>
+                <div className="flex flex-col gap-1.5 px-3 py-2 bg-rose-500/15 border border-rose-500/40 rounded-xl text-rose-300 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                      <span className="font-bold">Live Voice Dictation:</span>
+                      <span className="text-slate-300">Speak naturally; technical DSA terms are auto-normalized</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className="text-[11px] font-bold text-rose-200 hover:text-white underline ml-2"
+                    >
+                      Done Speaking
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={toggleListening}
-                    className="text-[11px] font-bold text-rose-200 hover:text-white underline ml-2"
-                  >
-                    Done Speaking
-                  </button>
+                  {interimTranscript && (
+                    <div className="text-[11px] italic text-rose-200 bg-rose-950/50 px-2.5 py-1 rounded border border-rose-500/30 flex items-center space-x-1.5">
+                      <span className="font-semibold not-italic text-rose-400 text-[10px] uppercase tracking-wider">Hearing:</span>
+                      <span>"{interimTranscript}..."</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -581,7 +603,10 @@ export const InterviewSessionPage: React.FC = () => {
 
                 <textarea
                   value={studentInput}
-                  onChange={(e) => setStudentInput(e.target.value)}
+                  onChange={(e) => {
+                    setStudentInput(e.target.value);
+                    baseInputRef.current = e.target.value.trim();
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && studentInput.trim()) {
                       e.preventDefault();
