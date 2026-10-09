@@ -162,3 +162,20 @@ class MockAIProvider(BaseAIProvider):
             "recommended_topics": topics if topics else ["Hash Table", "Two Pointers"],
             "recommended_problems": []
         }
+
+    def conduct_chat_turn(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        from apps.coaching.mentor_engine import DSACoachDialogueEngine
+        problem = context.get('problem_obj')
+        if not problem:
+            from apps.problems.models import Problem
+            prob_dict = context.get('problem', {})
+            problem = Problem.objects.filter(id=prob_dict.get('id')).first()
+
+        return DSACoachDialogueEngine.process_turn(
+            problem=problem,
+            session_data=context.get('session_data', {}),
+            student_message=context.get('student_message', ''),
+            student_code=context.get('student_code', ''),
+            run_code=context.get('run_code', False)
+        )
+

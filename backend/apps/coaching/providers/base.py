@@ -36,3 +36,8 @@ class BaseAIProvider(ABC):
     def evaluate_interview(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Evaluate overall mock technical interview performance across all rubric categories."""
         pass
+
+    @abstractmethod
+    def conduct_chat_turn(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Conduct a conversational DSA reasoning coaching turn."""
+        pass

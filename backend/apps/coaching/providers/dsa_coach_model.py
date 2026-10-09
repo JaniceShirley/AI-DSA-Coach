@@ -211,3 +211,7 @@ class DSACoachModel(BaseAIProvider):
 
     def evaluate_interview(self, context: Dict[str, Any]) -> Dict[str, Any]:
         return self.fallback.evaluate_interview(context)
+
+    def conduct_chat_turn(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        return self.fallback.conduct_chat_turn(context)
+

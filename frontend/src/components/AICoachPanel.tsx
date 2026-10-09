@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { coachingService } from '../services/coachingService';
-import type { CoachingInteraction, AIFeedbackData } from '../types';
+import type {
+  ChatMessage,
+  LearningStage,
+  CoachingSessionState
+} from '../types';
 import {
   Sparkles,
-  HelpCircle,
-  BrainCircuit,
-  Compass,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
   Send,
-  MessageSquare,
-  ChevronRight,
-  ShieldCheck,
-  Zap,
+  Loader2,
+  RotateCcw,
   Volume2,
   VolumeX,
+  AlertCircle,
+  CheckCircle2,
+  Bot,
+  User,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Code2,
+  Lightbulb,
+  Scale
 } from 'lucide-react';
 import { speak, stopSpeaking } from '../utils/speech';
 
@@ -30,10 +36,158 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
   studentCode,
   latestSubmissionId
 }) => {
-  const [activeMode, setActiveMode] = useState<'hint' | 'challenge' | 'alternative' | 'feedback'>('hint');
+  // Session & Chat State
+  const [session, setSession] = useState<CoachingSessionState | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputMessage, setInputMessage] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [speakingText, setSpeakingText] = useState<string | null>(null);
+
+  // Secondary Tools drawer
+  const [showSecondaryTools, setShowSecondaryTools] = useState<boolean>(false);
+  const [showApproachesDrawer, setShowApproachesDrawer] = useState<boolean>(false);
+  const [hintLevel, setHintLevel] = useState<number>(0);
+
+  // Auto-scroll ref
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load session on mount / problem change
+  useEffect(() => {
+    loadSession();
+    return () => {
+      stopSpeaking();
+    };
+  }, [problemId]);
+
+  // Scroll on message updates
+  useEffect(() => {
+    scrollToBottom(false);
+  }, [messages, loading]);
+
+  const scrollToBottom = (smooth = true) => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    }
+  };
+
+  const loadSession = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const state = await coachingService.getSessionState(problemId);
+      setSession(state);
+      setMessages(state.messages || []);
+    } catch (err) {
+      console.error('Failed to load coaching session:', err);
+      // Fallback empty state
+      setSession({
+        session_id: 0,
+        problem_id: problemId,
+        stage: 'APPROACH_DISCOVERY',
+        current_approach: {},
+        explored_approaches: [],
+        solution_status: 'IN_PROGRESS',
+        complexity_state: {},
+        hints_provided: [],
+        misconceptions: [],
+        messages: [],
+        updated_at: new Date().toISOString()
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetSession = async () => {
+    if (!window.confirm('Reset your mentoring session for this problem? Your conversation history will start fresh.')) {
+      return;
+    }
+    try {
+      setLoading(true);
+      stopSpeaking();
+      const resetState = await coachingService.resetSession(problemId);
+      setSession(resetState);
+      setMessages([]);
+      setError(null);
+    } catch (err) {
+      console.error('Reset failed:', err);
+      setError('Could not reset session. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (customText?: string, runCode = false) => {
+    const textToSend = (customText !== undefined ? customText : inputMessage).trim();
+    if (!textToSend || loading) return;
+
+    setInputMessage('');
+    setError(null);
+
+    // Optimistically append user message
+    const tempUserMsg: ChatMessage = {
+      id: `temp-${Date.now()}`,
+      role: 'user',
+      content: textToSend,
+      created_at: new Date().toISOString()
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
+    try {
+      setLoading(true);
+      const res = await coachingService.sendChatMessage(
+        problemId,
+        textToSend,
+        studentCode,
+        runCode
+      );
+
+      // Append AI response
+      const aiMsg: ChatMessage = {
+        id: `ai-${res.interaction_id || Date.now()}`,
+        role: 'assistant',
+        content: res.message,
+        created_at: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+
+      // Update session state
+      setSession((prev) => ({
+        ...(prev || {
+          session_id: res.session_id,
+          problem_id: problemId,
+          messages: [],
+          updated_at: new Date().toISOString()
+        }),
+        stage: res.stage,
+        current_approach: res.current_approach,
+        explored_approaches: res.explored_approaches,
+        solution_status: res.solution_status,
+        complexity_state: res.complexity_state,
+        hints_provided: prev?.hints_provided || [],
+        misconceptions: prev?.misconceptions || [],
+        messages: [...(prev?.messages || []), tempUserMsg, aiMsg],
+        last_student_code: studentCode,
+        last_execution_result: res.execution_result
+      }));
+    } catch (err: unknown) {
+      console.error('Failed to send message:', err);
+      setError('Unable to reach your AI Mentor. Check your connection or try again.');
+      // Remove optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   const handleSpeak = (text: string) => {
     if (speakingText === text) {
@@ -49,539 +203,554 @@ export const AICoachPanel: React.FC<AICoachPanelProps> = ({
     );
   };
 
-  useEffect(() => {
-    return () => {
-      stopSpeaking();
-    };
-  }, []);
-
-  // Hints state
-  const [hintText, setHintText] = useState<string | null>(null);
-  const [currentHintLevel, setCurrentHintLevel] = useState<number>(0);
-  const [hintsUsed, setHintsUsed] = useState<number>(0);
-
-  // Challenge state
-  const [challengeText, setChallengeText] = useState<string | null>(null);
-  const [userAnswer, setUserAnswer] = useState<string>('');
-
-  // Alternative Approach state
-  const [alternativeText, setAlternativeText] = useState<string | null>(null);
-
-  // Feedback state
-  const [feedbackData, setFeedbackData] = useState<AIFeedbackData | null>(null);
-
-  // History state
-  const [history, setHistory] = useState<CoachingInteraction[]>([]);
-  const [showHistory, setShowHistory] = useState<boolean>(false);
-
-  useEffect(() => {
-    // Load existing history on component mount / problem change
-    loadHistory();
-  }, [problemId]);
-
-  const loadHistory = async () => {
-    try {
-      const data = await coachingService.getCoachingHistory(problemId);
-      setHistory(data);
-      // Find latest hint level if present
-      const latestHint = data.find((h) => h.interaction_type === 'hint' && h.hint_level);
-      if (latestHint && latestHint.hint_level) {
-        setCurrentHintLevel(latestHint.hint_level);
-      }
-    } catch {
-      // Silent error fallback for history loading
-    }
-  };
-
-  const handleRequestHint = async (requestedLevel?: number) => {
+  // Secondary Tools: Request Progressive Hint
+  const handleRequestHint = async () => {
     try {
       setLoading(true);
-      setError(null);
-      setActiveMode('hint');
+      const nextLevel = hintLevel < 4 ? hintLevel + 1 : 4;
+      const res = await coachingService.getHint(problemId, studentCode, latestSubmissionId, nextLevel);
+      setHintLevel(res.hint_level);
 
-      const targetLevel = requestedLevel || (currentHintLevel < 4 ? currentHintLevel + 1 : 4);
-      const res = await coachingService.getHint(
-        problemId,
-        studentCode,
-        latestSubmissionId,
-        targetLevel
-      );
-
-      setHintText(res.hint);
-      setCurrentHintLevel(res.hint_level);
-      setHintsUsed(res.hints_used);
-      await loadHistory();
-    } catch (err: unknown) {
-      console.error('Failed to get AI hint:', err);
-      setError('AI Coach is temporarily unavailable. You can continue solving and submit your code normally.');
+      const aiMsg: ChatMessage = {
+        id: `hint-${Date.now()}`,
+        role: 'assistant',
+        content: `💡 **Level ${res.hint_level} Clue:**\n\n${res.hint}`,
+        created_at: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error('Failed to get hint:', err);
+      setError('Could not retrieve hint at this moment.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChallenge = async (customAnswer?: string) => {
+  // Secondary Tools: Request Post-Submission Feedback
+  const handleRequestFeedback = async () => {
     try {
       setLoading(true);
-      setError(null);
-      setActiveMode('challenge');
-
-      const answerToSubmit = customAnswer !== undefined ? customAnswer : userAnswer;
-      const res = await coachingService.challengeUnderstanding(problemId, studentCode, answerToSubmit);
-
-      setChallengeText(res.challenge);
-      setUserAnswer('');
-      await loadHistory();
-    } catch (err: unknown) {
-      console.error('Failed to get challenge:', err);
-      setError('AI Coach is temporarily unavailable. You can continue solving and submit your code normally.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAlternative = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setActiveMode('alternative');
-
-      const res = await coachingService.getAlternativeApproach(problemId, studentCode);
-      setAlternativeText(res.alternative_approach);
-      await loadHistory();
-    } catch (err: unknown) {
-      console.error('Failed to get alternative approach:', err);
-      setError('AI Coach is temporarily unavailable. You can continue solving and submit your code normally.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFeedback = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setActiveMode('feedback');
-
       const res = await coachingService.getFeedback(problemId, studentCode, latestSubmissionId);
-      setFeedbackData(res.feedback);
-      await loadHistory();
-    } catch (err: unknown) {
+
+      const summary = `📊 **Post-Submission Code Review:**\n\n- **Approach:** ${res.feedback.approach}\n- **Correctness:** ${res.feedback.correctness}\n- **Time Complexity:** ${res.feedback.time_complexity}\n- **Space Complexity:** ${res.feedback.space_complexity}\n- **Edge Cases:** ${res.feedback.edge_cases}\n- **Next Step:** ${res.feedback.optimization}`;
+      const aiMsg: ChatMessage = {
+        id: `feedback-${Date.now()}`,
+        role: 'assistant',
+        content: summary,
+        created_at: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
       console.error('Failed to get feedback:', err);
-      setError('AI Coach is temporarily unavailable. You can continue solving and submit your code normally.');
+      setError('Could not retrieve code review at this moment.');
     } finally {
       setLoading(false);
     }
   };
 
-  const getHintLevelBadge = (level: number) => {
-    switch (level) {
-      case 1:
-        return { label: 'Level 1: Conceptual', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
-      case 2:
-        return { label: 'Level 2: Directional', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' };
-      case 3:
-        return { label: 'Level 3: Strategic', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
-      case 4:
-        return { label: 'Level 4: Detailed Guidance', color: 'bg-rose-500/20 text-rose-300 border-rose-500/40' };
+  // Stage formatting helper
+  const getStageBadge = (stage?: LearningStage) => {
+    switch (stage) {
+      case 'UNDERSTANDING_PROBLEM':
+        return { label: 'Clarifying Problem', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' };
+      case 'APPROACH_DISCOVERY':
+        return { label: 'Exploring Approach', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' };
+      case 'GUIDED_IMPLEMENTATION':
+        return { label: 'Guided Coding', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+      case 'DEBUGGING':
+        return { label: 'Debugging Code', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' };
+      case 'CORRECTNESS_VERIFICATION':
+        return { label: 'Verifying Tests', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+      case 'COMPLEXITY_ANALYSIS':
+        return { label: 'Complexity Analysis', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' };
+      case 'OPTIMIZATION_DISCOVERY':
+        return { label: 'Discovering Optimization', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' };
+      case 'OPTIMIZED_IMPLEMENTATION':
+        return { label: 'Implementing Optimized Solution', color: 'bg-teal-500/10 text-teal-400 border-teal-500/20' };
+      case 'APPROACH_COMPARISON':
+        return { label: 'Comparing Approaches', color: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20' };
+      case 'COMPLETED':
+        return { label: 'Mastered & Solved', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
       default:
-        return { label: 'Hint Level', color: 'bg-slate-800 text-slate-300 border-slate-700' };
+        return { label: 'Mentoring', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' };
     }
   };
+
+  // Helper to render markdown text with bold, inline code, blocks, and tables
+  const renderFormattedContent = (content: string) => {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let inCodeBlock = false;
+    let codeBuffer: string[] = [];
+    let tableBuffer: string[] = [];
+    let inTable = false;
+
+    const flushTable = () => {
+      if (tableBuffer.length === 0) return;
+      const rows = tableBuffer.map((r) =>
+        r
+          .split('|')
+          .slice(1, -1)
+          .map((c) => c.trim())
+      );
+      if (rows.length >= 2) {
+        const header = rows[0];
+        const bodyRows = rows.slice(2); // Skip separator row
+        elements.push(
+          <div key={`table-${elements.length}`} className="overflow-x-auto my-3">
+            <table className="min-w-full text-xs text-left border border-slate-700/60 rounded-lg overflow-hidden bg-slate-950/40">
+              <thead className="bg-slate-800/80 text-slate-200">
+                <tr>
+                  {header.map((th, i) => (
+                    <th key={i} className="px-3 py-2 font-semibold border-b border-slate-700/60">
+                      {th.replace(/\*\*/g, '')}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {bodyRows.map((tr, rIdx) => (
+                  <tr key={rIdx} className="hover:bg-slate-800/30">
+                    {tr.map((td, cIdx) => (
+                      <td key={cIdx} className="px-3 py-2 text-slate-300">
+                        {renderInlineFormatting(td)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      tableBuffer = [];
+      inTable = false;
+    };
+
+    lines.forEach((line, idx) => {
+      // Code block start / end
+      if (line.trim().startsWith('```')) {
+        if (inCodeBlock) {
+          elements.push(
+            <pre
+              key={`code-${idx}`}
+              className="p-3 my-2 bg-slate-950 border border-slate-800 rounded-lg text-emerald-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap"
+            >
+              {codeBuffer.join('\n')}
+            </pre>
+          );
+          codeBuffer = [];
+          inCodeBlock = false;
+        } else {
+          flushTable();
+          inCodeBlock = true;
+        }
+        return;
+      }
+
+      if (inCodeBlock) {
+        codeBuffer.push(line);
+        return;
+      }
+
+      // Markdown table line
+      if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+        inTable = true;
+        tableBuffer.push(line.trim());
+        return;
+      } else if (inTable) {
+        flushTable();
+      }
+
+      // Blockquote / Callout
+      if (line.trim().startsWith('>')) {
+        elements.push(
+          <blockquote
+            key={`quote-${idx}`}
+            className="border-l-2 border-indigo-500 pl-3 py-1 my-2 text-slate-300 bg-indigo-950/20 rounded-r text-xs italic"
+          >
+            {renderInlineFormatting(line.replace(/^>\s*/, ''))}
+          </blockquote>
+        );
+        return;
+      }
+
+      // Headers
+      if (line.trim().startsWith('###')) {
+        elements.push(
+          <h4 key={`h3-${idx}`} className="text-sm font-bold text-white mt-3 mb-1">
+            {line.replace(/^###\s*/, '')}
+          </h4>
+        );
+        return;
+      }
+      if (line.trim().startsWith('##')) {
+        elements.push(
+          <h3 key={`h2-${idx}`} className="text-base font-bold text-white mt-3 mb-1">
+            {line.replace(/^##\s*/, '')}
+          </h3>
+        );
+        return;
+      }
+
+      // Bullet lists
+      if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+        elements.push(
+          <li key={`li-${idx}`} className="ml-4 list-disc text-slate-300 text-xs my-0.5">
+            {renderInlineFormatting(line.replace(/^[-*]\s+/, ''))}
+          </li>
+        );
+        return;
+      }
+
+      // Empty line
+      if (!line.trim()) {
+        elements.push(<div key={`sp-${idx}`} className="h-1.5" />);
+        return;
+      }
+
+      // Regular paragraph
+      elements.push(
+        <p key={`p-${idx}`} className="text-xs text-slate-200 leading-relaxed">
+          {renderInlineFormatting(line)}
+        </p>
+      );
+    });
+
+    if (inTable) flushTable();
+
+    return elements;
+  };
+
+  const renderInlineFormatting = (text: string): React.ReactNode => {
+    // Quick regex inline parser for bold and backticks
+    const parts: React.ReactNode[] = [];
+    const tokens = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+
+    tokens.forEach((token, idx) => {
+      if (token.startsWith('`') && token.endsWith('`')) {
+        parts.push(
+          <code
+            key={idx}
+            className="px-1.5 py-0.5 bg-slate-800 text-indigo-300 rounded font-mono text-[11px] border border-slate-700/60"
+          >
+            {token.slice(1, -1)}
+          </code>
+        );
+      } else if (token.startsWith('**') && token.endsWith('**')) {
+        parts.push(
+          <strong key={idx} className="font-bold text-white">
+            {token.slice(2, -2)}
+          </strong>
+        );
+      } else {
+        parts.push(token);
+      }
+    });
+
+    return parts;
+  };
+
+  const stageBadge = getStageBadge(session?.stage);
 
   return (
-    <div className="bg-slate-900 border border-indigo-500/30 rounded-xl overflow-hidden shadow-xl transition-all">
-      {/* Header */}
-      <div className="bg-slate-950 border-b border-slate-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-lg shadow-black/20">
+      {/* HEADER */}
+      <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
         <div className="flex items-center space-x-2.5">
-          <div className="p-2 bg-indigo-600/20 border border-indigo-500/40 rounded-lg text-indigo-400">
-            <Sparkles className="w-5 h-5 animate-pulse" />
+          <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight flex items-center space-x-2">
-              <span>AI DSA Coach</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
-                Guided Learning
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-bold text-white tracking-wide">AI DSA Mentor</h3>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${stageBadge.color}`}>
+                {stageBadge.label}
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center space-x-1" title="Model: Qwen2.5-Coder-0.5B + dsa-coach-lora-v1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                <span>QLoRA Active</span>
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Personalized progressive hints & code-aware analysis without solution leakage.
-            </p>
+            </div>
+            {session?.current_approach?.name && (
+              <p className="text-[11px] text-slate-400 flex items-center space-x-1 mt-0.5">
+                <span className="text-slate-500">Current Approach:</span>
+                <span className="text-indigo-300 font-medium">{session.current_approach.name}</span>
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Top Control Bar */}
-        <div className="flex items-center space-x-2 text-xs">
+        {/* Top Header Actions */}
+        <div className="flex items-center space-x-1.5">
+          {session?.explored_approaches && session.explored_approaches.length > 0 && (
+            <button
+              onClick={() => setShowApproachesDrawer(!showApproachesDrawer)}
+              className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs rounded-lg flex items-center space-x-1 border border-slate-700/60 transition-colors"
+              title="View Explored Approaches"
+            >
+              <Layers className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline">Approaches ({session.explored_approaches.length})</span>
+            </button>
+          )}
+
           <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg text-slate-300 font-medium transition-colors flex items-center space-x-1.5"
+            onClick={() => setShowSecondaryTools(!showSecondaryTools)}
+            className="px-2 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs rounded-lg flex items-center space-x-1 border border-slate-700/60 transition-colors"
+            title="Secondary Tools (Hints & Feedback)"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
-            <span>History ({history.length})</span>
+            <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Tools</span>
+            {showSecondaryTools ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          <button
+            onClick={handleResetSession}
+            disabled={loading}
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            title="Reset Mentoring Session"
+          >
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Action Buttons Grid */}
-      <div className="p-4 bg-slate-900/60 border-b border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      {/* EXPLORED APPROACHES DRAWER */}
+      {showApproachesDrawer && session?.explored_approaches && (
+        <div className="p-3 bg-slate-950 border-b border-slate-800 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-300 flex items-center space-x-1.5">
+              <Layers className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Explored Approaches</span>
+            </span>
+            <button
+              onClick={() => handleSendMessage('Can we compare the approaches explored so far?')}
+              className="text-indigo-400 hover:text-indigo-300 text-[11px] underline flex items-center space-x-1"
+            >
+              <Scale className="w-3 h-3" />
+              <span>Compare Trade-offs</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {session.explored_approaches.map((app, i) => (
+              <div key={i} className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-200">{app.name}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                      app.status === 'VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {app.status || 'Explored'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono space-x-2">
+                  <span>Time: {app.time_complexity || 'O(?)'}</span>
+                  <span>Space: {app.space_complexity || 'O(?)'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SECONDARY TOOLS DRAWER */}
+      {showSecondaryTools && (
+        <div className="p-3 bg-slate-950 border-b border-slate-800 flex flex-wrap gap-2 text-xs">
+          <button
+            onClick={handleRequestHint}
+            disabled={loading}
+            className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-lg flex items-center space-x-1.5 transition-colors"
+          >
+            <Lightbulb className="w-3.5 h-3.5" />
+            <span>Progressive Clue (Level {hintLevel < 4 ? hintLevel + 1 : 4})</span>
+          </button>
+
+          <button
+            onClick={handleRequestFeedback}
+            disabled={loading || !latestSubmissionId}
+            className="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-lg flex items-center space-x-1.5 transition-colors disabled:opacity-40"
+            title={latestSubmissionId ? 'Review latest submission' : 'Submit code first to review'}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Post-Submit Feedback</span>
+          </button>
+        </div>
+      )}
+
+      {/* CHAT MESSAGES CONTAINER */}
+      <div
+        ref={chatContainerRef}
+        className="flex-1 p-4 overflow-y-auto space-y-3.5 min-h-[300px] max-h-[460px] bg-slate-900/50"
+      >
+        {/* Empty state welcome */}
+        {messages.length === 0 && (
+          <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3 text-center">
+            <div className="w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center mx-auto">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white">Welcome! I'm your AI DSA Mentor.</h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                I'm here to help you reason through this problem using <strong>your own ideas</strong>. Even a simple brute-force idea is a great place to start!
+              </p>
+            </div>
+
+            {/* Quick Starters */}
+            <div className="pt-2 flex flex-wrap justify-center gap-2">
+              {[
+                "I think I can use brute force.",
+                "Can I use a hash set or dictionary?",
+                "Can I solve this with sorting?",
+                "I don't understand the problem."
+              ].map((starter, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSendMessage(starter)}
+                  disabled={loading}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/70 text-slate-300 hover:text-white rounded-lg text-xs transition-colors"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message Stream */}
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex items-start space-x-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            {msg.role === 'assistant' && (
+              <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex-shrink-0 flex items-center justify-center text-indigo-400 mt-1">
+                <Bot className="w-4 h-4" />
+              </div>
+            )}
+
+            <div
+              className={`relative max-w-[85%] rounded-2xl p-3.5 text-xs shadow-sm ${
+                msg.role === 'user'
+                  ? 'bg-indigo-600 text-white rounded-br-sm'
+                  : 'bg-slate-950 border border-slate-800/90 text-slate-200 rounded-bl-sm space-y-1.5'
+              }`}
+            >
+              {msg.role === 'user' ? (
+                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {renderFormattedContent(msg.content)}
+
+                  {/* Speech button on AI response */}
+                  <div className="pt-1.5 flex justify-end">
+                    <button
+                      onClick={() => handleSpeak(msg.content)}
+                      className="text-slate-400 hover:text-white p-1 rounded transition-colors"
+                      title={speakingText === msg.content ? 'Stop Audio' : 'Listen with Speech'}
+                    >
+                      {speakingText === msg.content ? (
+                        <VolumeX className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {msg.role === 'user' && (
+              <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center text-slate-300 mt-1">
+                <User className="w-4 h-4" />
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Loading Indicator */}
+        {loading && (
+          <div className="flex items-start space-x-2.5">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/40 flex-shrink-0 flex items-center justify-center text-indigo-400 mt-1">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl rounded-bl-sm p-3.5 text-xs flex items-center space-x-2 text-slate-400">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+              <span>Mentor is analyzing your reasoning...</span>
+            </div>
+          </div>
+        )}
+
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* ERROR BANNER */}
+      {error && (
+        <div className="px-3 py-2 bg-rose-500/10 border-t border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+          <div className="flex items-center space-x-1.5">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-slate-400 hover:text-white ml-2">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* QUICK SUGGESTIONS BAR */}
+      <div className="p-2 border-t border-slate-800/80 bg-slate-950/40 flex items-center space-x-1.5 overflow-x-auto text-[11px]">
         <button
-          onClick={() => handleRequestHint()}
-          disabled={loading}
-          className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${
-            activeMode === 'hint'
-              ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-              : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'
-          }`}
+          onClick={() => handleSendMessage('Can you review my code in the editor?', false)}
+          disabled={loading || !studentCode.trim()}
+          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 rounded-md whitespace-nowrap transition-colors flex items-center space-x-1"
         >
-          <HelpCircle className="w-4 h-4 text-emerald-400" />
-          <span>I'm Stuck</span>
+          <Code2 className="w-3 h-3 text-indigo-400" />
+          <span>Review My Code</span>
         </button>
 
         <button
-          onClick={() => handleChallenge()}
-          disabled={loading}
-          className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${
-            activeMode === 'challenge'
-              ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-              : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'
-          }`}
+          onClick={() => handleSendMessage('Please check and verify my code against test cases.', true)}
+          disabled={loading || !studentCode.trim()}
+          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 rounded-md whitespace-nowrap transition-colors flex items-center space-x-1"
         >
-          <BrainCircuit className="w-4 h-4 text-amber-400" />
-          <span>Challenge Me</span>
+          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+          <span>Verify Against Tests</span>
         </button>
 
         <button
-          onClick={() => handleAlternative()}
+          onClick={() => handleSendMessage('What is the time complexity of this approach?')}
           disabled={loading}
-          className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${
-            activeMode === 'alternative'
-              ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-              : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'
-          }`}
+          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md whitespace-nowrap transition-colors"
         >
-          <Compass className="w-4 h-4 text-blue-400" />
-          <span>Alternative Approach</span>
+          Complexity?
         </button>
 
         <button
-          onClick={() => handleFeedback()}
+          onClick={() => handleSendMessage("I am stuck on this step, can you give me a small clue?")}
           disabled={loading}
-          className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-2 transition-all ${
-            activeMode === 'feedback'
-              ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-              : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900'
-          }`}
+          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-md whitespace-nowrap transition-colors"
         >
-          <Zap className="w-4 h-4 text-purple-400" />
-          <span>AI Feedback</span>
+          I'm Stuck
         </button>
       </div>
 
-      {/* Main Content Area */}
-      <div className="p-5 space-y-4">
-        {loading && (
-          <div className="py-8 flex flex-col items-center justify-center space-y-3 text-indigo-400">
-            <Loader2 className="w-7 h-7 animate-spin" />
-            <p className="text-xs text-slate-400 font-medium">
-              AI Coach is analyzing code & problem context...
-            </p>
-          </div>
-        )}
+      {/* MESSAGE COMPOSER */}
+      <div className="p-3 border-t border-slate-800 bg-slate-950">
+        <div className="flex items-end space-x-2 bg-slate-900 border border-slate-800 focus-within:border-indigo-500 rounded-xl p-2 transition-colors">
+          <textarea
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your approach, question, or idea... (Enter to send, Shift+Enter for new line)"
+            rows={2}
+            className="flex-1 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none resize-none max-h-28 overflow-y-auto"
+          />
 
-        {error && !loading && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-rose-200">Coach Warning</p>
-              <p className="mt-1">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* HISTORY PANEL DRAWER */}
-        {showHistory && (
-          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
-              Coaching Interaction Session History
-            </h4>
-            {history.length === 0 ? (
-              <p className="text-xs text-slate-500">No interaction history for this problem yet.</p>
-            ) : (
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                {history.map((item) => (
-                  <div key={item.id} className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs space-y-1.5">
-                    <div className="flex items-center justify-between text-slate-400 text-[11px]">
-                      <span className="font-bold text-indigo-400 uppercase tracking-wider">{item.interaction_type}</span>
-                      <span>{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    {item.user_question && (
-                      <p className="text-slate-400 italic">User: "{item.user_question}"</p>
-                    )}
-                    <p className="text-slate-200 whitespace-pre-line font-sans">{item.ai_response}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* HINT MODE DISPLAY */}
-        {!loading && !error && activeMode === 'hint' && (
-          <div className="space-y-4">
-            {hintText ? (
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 shadow-inner">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <span className={`text-xs px-3 py-1 rounded-full font-bold border ${getHintLevelBadge(currentHintLevel).color}`}>
-                    {getHintLevelBadge(currentHintLevel).label}
-                  </span>
-                  <div className="flex items-center space-x-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleSpeak(hintText)}
-                      className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center space-x-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 transition-colors"
-                      title="Listen to hint spoken aloud"
-                    >
-                      {speakingText === hintText ? (
-                        <>
-                          <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                          <span>Stop</span>
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 className="w-3.5 h-3.5" />
-                          <span>Listen</span>
-                        </>
-                      )}
-                    </button>
-                    <span className="text-xs text-slate-400 font-mono">
-                      Total Hints Used: {hintsUsed}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-line font-sans">
-                  {hintText}
-                </div>
-
-                {/* Level Navigation / Next Hint Controls */}
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80">
-                  <button
-                    onClick={() => handleRequestHint(currentHintLevel)}
-                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-colors"
-                  >
-                    Try Again
-                  </button>
-
-                  {currentHintLevel < 4 && (
-                    <button
-                      onClick={() => handleRequestHint(currentHintLevel + 1)}
-                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-sm"
-                    >
-                      <span>Need Another Hint (Level {currentHintLevel + 1})</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="p-6 bg-slate-950/60 border border-dashed border-slate-800 rounded-xl text-center space-y-3">
-                <ShieldCheck className="w-8 h-8 text-indigo-400 mx-auto opacity-80" />
-                <h4 className="text-sm font-semibold text-white">Ready when you are!</h4>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click <strong className="text-indigo-300">"I'm Stuck"</strong> anytime to get conceptual guidance without revealing complete code solutions.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* CHALLENGE MODE DISPLAY */}
-        {!loading && !error && activeMode === 'challenge' && (
-          <div className="space-y-4">
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 shadow-inner">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center space-x-2 text-amber-400">
-                  <BrainCircuit className="w-5 h-5" />
-                  <h4 className="text-sm font-bold text-white">Challenge Your Understanding</h4>
-                </div>
-                {challengeText && (
-                  <button
-                    type="button"
-                    onClick={() => handleSpeak(challengeText)}
-                    className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center space-x-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 transition-colors"
-                    title="Listen to challenge question"
-                  >
-                    {speakingText === challengeText ? (
-                      <>
-                        <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Stop</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="w-3.5 h-3.5" />
-                        <span>Listen</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {challengeText ? (
-                <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-line font-sans">
-                  {challengeText}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">
-                  Click the button below to generate conceptual edge-case questions for your code!
-                </p>
-              )}
-
-              {/* Interactive Student Answer Input Box */}
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <label className="text-xs font-semibold text-slate-400 block">
-                  Reply to AI Coach (Explain your reasoning or complexity):
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && userAnswer.trim()) {
-                        handleChallenge(userAnswer);
-                      }
-                    }}
-                    placeholder="e.g. 'My algorithm runs in O(N) time because hash map lookups take O(1)...'"
-                    className="flex-grow bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    onClick={() => handleChallenge(userAnswer)}
-                    disabled={!userAnswer.trim()}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center space-x-1 transition-colors"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Submit</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ALTERNATIVE APPROACH MODE DISPLAY */}
-        {!loading && !error && activeMode === 'alternative' && (
-          <div className="space-y-4">
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 shadow-inner">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center space-x-2 text-blue-400">
-                  <Compass className="w-5 h-5" />
-                  <h4 className="text-sm font-bold text-white">Explore Alternative Approaches</h4>
-                </div>
-                {alternativeText && (
-                  <button
-                    type="button"
-                    onClick={() => handleSpeak(alternativeText)}
-                    className="px-2 py-0.5 rounded text-[11px] font-semibold flex items-center space-x-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/30 transition-colors"
-                    title="Listen to alternative approach"
-                  >
-                    {speakingText === alternativeText ? (
-                      <>
-                        <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Stop</span>
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="w-3.5 h-3.5" />
-                        <span>Listen</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {alternativeText ? (
-                <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-line font-sans">
-                  {alternativeText}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-xs text-slate-400 mb-3">
-                    Discover different algorithmic strategies (e.g. Hash Table vs Two Pointers).
-                  </p>
-                  <button
-                    onClick={() => handleAlternative()}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-2"
-                  >
-                    <Compass className="w-4 h-4" />
-                    <span>Generate Alternative Strategies</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* AI FEEDBACK MODE DISPLAY */}
-        {!loading && !error && activeMode === 'feedback' && (
-          <div className="space-y-4">
-            {feedbackData ? (
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 shadow-inner">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center space-x-2 text-purple-400">
-                    <Zap className="w-5 h-5" />
-                    <h4 className="text-sm font-bold text-white">AI Solution Feedback</h4>
-                  </div>
-                  <span className="text-xs px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
-                    Structured Review
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Approach</span>
-                    <p className="text-slate-200">{feedbackData.approach}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Correctness</span>
-                    <p className="text-slate-200">{feedbackData.correctness}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Time Complexity</span>
-                    <p className="text-emerald-400 font-mono font-semibold">{feedbackData.time_complexity}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Space Complexity</span>
-                    <p className="text-blue-400 font-mono font-semibold">{feedbackData.space_complexity}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1 sm:col-span-2">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Edge Cases & Testing</span>
-                    <p className="text-slate-200">{feedbackData.edge_cases}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1 sm:col-span-2">
-                    <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px] block">Possible Optimizations</span>
-                    <p className="text-slate-200">{feedbackData.optimization}</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6 bg-slate-950/60 border border-slate-800 rounded-xl text-center space-y-3">
-                <CheckCircle className="w-8 h-8 text-purple-400 mx-auto opacity-80" />
-                <h4 className="text-sm font-semibold text-white">Code Review & Feedback</h4>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click <strong className="text-indigo-300">"AI Feedback"</strong> after writing or submitting your code to get structured evaluation of time/space complexity and optimization options.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+          <button
+            onClick={() => handleSendMessage()}
+            disabled={loading || !inputMessage.trim()}
+            className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white rounded-lg transition-colors flex-shrink-0"
+            title="Send Message (Enter)"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ from django.conf import settings
 from apps.problems.models import Problem
 from apps.submissions.models import Submission
 from apps.progress.models import UserProblemProgress
-from apps.coaching.models import CoachingInteraction
+from apps.coaching.models import CoachingInteraction, CoachingSession
 from apps.coaching.providers import get_ai_provider
 
 logger = logging.getLogger(__name__)
@@ -307,4 +307,194 @@ class AICoachService:
             "feedback": feedback_data,
         }
 
+    def get_or_create_session(self, user, problem: Problem) -> CoachingSession:
+        session, _ = CoachingSession.objects.get_or_create(
+            user=user,
+            problem=problem,
+            defaults={
+                'stage': 'APPROACH_DISCOVERY',
+                'current_approach': {},
+                'explored_approaches': [],
+                'solution_status': 'IN_PROGRESS',
+                'complexity_state': {},
+                'hints_provided': [],
+                'misconceptions': [],
+            }
+        )
+        return session
+
+    def get_session_state(self, user, problem: Problem) -> Dict[str, Any]:
+        session = self.get_or_create_session(user, problem)
+        interactions = CoachingInteraction.objects.filter(
+            user=user,
+            problem=problem,
+            interaction_type='chat'
+        ).order_by('created_at')
+
+        messages = []
+        for inter in interactions:
+            if inter.user_question:
+                messages.append({
+                    "id": f"{inter.id}-user",
+                    "role": "user",
+                    "content": inter.user_question,
+                    "created_at": inter.created_at.isoformat()
+                })
+            messages.append({
+                "id": f"{inter.id}-ai",
+                "role": "assistant",
+                "content": inter.ai_response,
+                "created_at": inter.created_at.isoformat()
+            })
+
+        return {
+            "session_id": session.id,
+            "problem_id": problem.id,
+            "stage": session.stage,
+            "current_approach": session.current_approach,
+            "explored_approaches": session.explored_approaches,
+            "solution_status": session.solution_status,
+            "complexity_state": session.complexity_state,
+            "hints_provided": session.hints_provided,
+            "misconceptions": session.misconceptions,
+            "last_student_code": session.last_student_code,
+            "last_execution_result": session.last_execution_result,
+            "messages": messages,
+            "updated_at": session.updated_at.isoformat()
+        }
+
+    def reset_session(self, user, problem: Problem) -> Dict[str, Any]:
+        session = self.get_or_create_session(user, problem)
+        session.stage = 'APPROACH_DISCOVERY'
+        session.current_approach = {}
+        session.explored_approaches = []
+        session.solution_status = 'IN_PROGRESS'
+        session.complexity_state = {}
+        session.hints_provided = []
+        session.misconceptions = []
+        session.last_student_code = ''
+        session.last_execution_result = {}
+        session.save()
+
+        # Archive or clear prior chat interactions for fresh start
+        CoachingInteraction.objects.filter(user=user, problem=problem, interaction_type='chat').delete()
+
+        return self.get_session_state(user, problem)
+
+    def chat(
+        self,
+        user,
+        problem: Problem,
+        message: str,
+        student_code: str = "",
+        run_code: bool = False
+    ) -> Dict[str, Any]:
+        session = self.get_or_create_session(user, problem)
+        session_id_str = self._get_session_id(user.id, problem.id)
+
+        # Retrieve bounded dialogue history (last 8 chat turns)
+        recent_interactions = CoachingInteraction.objects.filter(
+            user=user,
+            problem=problem,
+            interaction_type='chat'
+        ).order_by('-created_at')[:8]
+
+        dialogue_history = []
+        for item in reversed(list(recent_interactions)):
+            dialogue_history.append({
+                "user": item.user_question or "",
+                "assistant": item.ai_response or ""
+            })
+
+        session_data = {
+            "stage": session.stage,
+            "current_approach": session.current_approach,
+            "explored_approaches": session.explored_approaches,
+            "solution_status": session.solution_status,
+            "complexity_state": session.complexity_state,
+            "hints_provided": session.hints_provided,
+            "misconceptions": session.misconceptions,
+            "dialogue_history": dialogue_history,
+        }
+
+        context = {
+            "problem": {
+                "id": problem.id,
+                "title": problem.title,
+                "description": problem.description,
+                "difficulty": problem.difficulty,
+                "topics": problem.topics,
+                "patterns": problem.patterns,
+                "constraints": problem.constraints,
+                "examples": problem.examples,
+            },
+            "problem_obj": problem,
+            "session_data": session_data,
+            "student_message": message,
+            "student_code": student_code,
+            "run_code": run_code,
+        }
+
+        try:
+            turn_result = self.provider.conduct_chat_turn(context)
+            raw_ai_message = turn_result.get("message", "")
+            ai_message = self._sanitize_response(raw_ai_message)
+        except Exception as e:
+            logger.error(f"Error conducting chat turn for user {user.id} on problem {problem.id}: {e}")
+            ai_message = "I encountered an issue processing your response. Let's continue—what step would you like to explore next?"
+            turn_result = {
+                "stage": session.stage,
+                "current_approach": session.current_approach,
+                "explored_approaches": session.explored_approaches,
+                "solution_status": session.solution_status,
+                "complexity_state": session.complexity_state,
+                "hints_provided": session.hints_provided,
+                "misconceptions": session.misconceptions,
+                "execution_result": None
+            }
+
+        # Update and save session state
+        session.stage = turn_result.get("stage", session.stage)
+        session.current_approach = turn_result.get("current_approach", session.current_approach)
+        session.explored_approaches = turn_result.get("explored_approaches", session.explored_approaches)
+        session.solution_status = turn_result.get("solution_status", session.solution_status)
+        session.complexity_state = turn_result.get("complexity_state", session.complexity_state)
+        session.hints_provided = turn_result.get("hints_provided", session.hints_provided)
+        session.misconceptions = turn_result.get("misconceptions", session.misconceptions)
+        if student_code:
+            session.last_student_code = student_code
+        if turn_result.get("execution_result"):
+            session.last_execution_result = turn_result.get("execution_result")
+        session.save()
+
+        # Record interaction
+        interaction = CoachingInteraction.objects.create(
+            user=user,
+            problem=problem,
+            coaching_session=session,
+            session_id=session_id_str,
+            student_code=student_code,
+            user_question=message,
+            ai_response=ai_message,
+            interaction_type='chat',
+            evaluation_metadata={
+                "stage": session.stage,
+                "approach": session.current_approach.get("name") if session.current_approach else None
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": ai_message,
+            "stage": session.stage,
+            "current_approach": session.current_approach,
+            "explored_approaches": session.explored_approaches,
+            "solution_status": session.solution_status,
+            "complexity_state": session.complexity_state,
+            "execution_result": turn_result.get("execution_result"),
+            "interaction_id": interaction.id,
+            "session_id": session.id
+        }
+
 ai_coach_service = AICoachService()
+

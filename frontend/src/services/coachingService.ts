@@ -4,10 +4,37 @@ import type {
   ChallengeResponse,
   AlternativeResponse,
   FeedbackResponse,
-  CoachingInteraction
+  CoachingInteraction,
+  CoachingSessionState,
+  ChatResponse
 } from '../types';
 
 export const coachingService = {
+  async sendChatMessage(
+    problemId: number,
+    message: string,
+    studentCode: string = '',
+    runCode: boolean = false
+  ): Promise<ChatResponse> {
+    const response = await api.post<ChatResponse>('/coaching/chat/', {
+      problem_id: problemId,
+      message,
+      student_code: studentCode,
+      run_code: runCode
+    });
+    return response.data;
+  },
+
+  async getSessionState(problemId: number): Promise<CoachingSessionState> {
+    const response = await api.get<CoachingSessionState>(`/coaching/session/${problemId}/`);
+    return response.data;
+  },
+
+  async resetSession(problemId: number): Promise<CoachingSessionState> {
+    const response = await api.post<CoachingSessionState>(`/coaching/session/${problemId}/reset/`);
+    return response.data;
+  },
+
   async getHint(
     problemId: number,
     studentCode: string,

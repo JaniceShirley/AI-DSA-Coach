@@ -4,15 +4,54 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from apps.problems.models import Problem
-from .models import CoachingInteraction
+from .models import CoachingInteraction, CoachingSession
 from .serializers import (
+    ChatRequestSerializer,
     HintRequestSerializer,
     ChallengeRequestSerializer,
     AlternativeRequestSerializer,
     FeedbackRequestSerializer,
     CoachingInteractionSerializer,
+    CoachingSessionSerializer,
 )
 from .ai_service import ai_coach_service
+
+class ChatView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChatRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        problem_id = serializer.validated_data['problem_id']
+        problem = get_object_or_404(Problem, id=problem_id)
+
+        result = ai_coach_service.chat(
+            user=request.user,
+            problem=problem,
+            message=serializer.validated_data['message'],
+            student_code=serializer.validated_data.get('student_code', ''),
+            run_code=serializer.validated_data.get('run_code', False)
+        )
+        return Response(result, status=status.HTTP_200_OK)
+
+class SessionStateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, problem_id):
+        problem = get_object_or_404(Problem, id=problem_id)
+        state = ai_coach_service.get_session_state(user=request.user, problem=problem)
+        return Response(state, status=status.HTTP_200_OK)
+
+class SessionResetView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, problem_id):
+        problem = get_object_or_404(Problem, id=problem_id)
+        state = ai_coach_service.reset_session(user=request.user, problem=problem)
+        return Response(state, status=status.HTTP_200_OK)
+
 
 class HintView(APIView):
     permission_classes = [IsAuthenticated]

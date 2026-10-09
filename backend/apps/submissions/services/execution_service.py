@@ -126,6 +126,7 @@ class CodeExecutionService:
             try:
                 cmd = [
                     docker_bin, "run", "--rm",
+                    "--pull=never",
                     "-v", f"{temp_dir}:/app:ro",
                     "-w", "/app",
                     "--network", "none",
@@ -134,7 +135,8 @@ class CodeExecutionService:
                     "python3", "runner.py"
                 ]
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=cls.TIMEOUT_SECONDS)
-                return res, False, True
+                if res.returncode != 125:
+                    return res, False, True
             except subprocess.TimeoutExpired:
                 return subprocess.CompletedProcess([], 124, "", "Timeout"), True, True
             except Exception:
@@ -185,6 +187,10 @@ test_cases = json.loads({json.dumps(payload_json)})
 def normalize_val(val):
     if isinstance(val, str):
         val = val.strip()
+        if val.lower() == 'true':
+            return True
+        if val.lower() == 'false':
+            return False
         try:
             return json.loads(val)
         except Exception:
